@@ -32,6 +32,48 @@ fn collectSources(
     }
 }
 
+fn createEngineModule(
+    b: *std.Build,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+    is_windows: bool,
+    cpp_sources: []const []const u8,
+    c_sources: []const []const u8,
+) *std.Build.Module {
+    const mod = b.createModule(.{
+        .target = target,
+        .optimize = optimize,
+        .link_libcpp = true,
+        .link_libc = true,
+    });
+
+    mod.addIncludePath(b.path(EnginePaths.engine_src));
+    mod.addIncludePath(b.path(EnginePaths.third_party));
+    mod.addIncludePath(b.path(EnginePaths.third_party ++ "/bullet"));
+    mod.addCMacro("NOMINMAX", "1");
+    mod.addCMacro("_CRT_SECURE_NO_WARNINGS", "1");
+    mod.addCMacro("EDITOR", "1");
+    if (optimize == .debug) mod.addCMacro("DEBUG", "1");
+    if (is_windows) {
+        mod.addCMacro("_WIN32", "1");
+        mod.addCMacro("_WIN64", "1");
+    } else {
+        mod.addCMacro("__LINUX__", "1");
+    }
+
+    mod.addCSourceFiles(.{
+        .files = cpp_sources,
+        .flags = &.{ "-std=c++17", "-fpermissive", "-Wno-everything" },
+    });
+    mod.addCSourceFiles(.{
+        .files = c_sources,
+        .flags = &.{"-std=c11"},
+        .language = .c,
+    });
+
+    return mod;
+}
+
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -57,37 +99,18 @@ pub fn build(b: *std.Build) void {
     c_sources.append(b.allocator, b.dupe(EnginePaths.engine_src ++ "/gl.c")) catch @panic("OOM");
     cpp_sources.append(b.allocator, b.dupe(EnginePaths.app_src ++ "/main.cpp")) catch @panic("OOM");
 
-    const mod = b.createModule(.{
-        .target = target,
-        .optimize = optimize,
-        .link_libcpp = true,
-        .link_libc = true,
+    // Compile-only target: validates that every source builds for a platform
+    // without requiring that platform's prebuilt libraries to be linkable.
+    const check_mod = createEngineModule(b, target, optimize, is_windows, cpp_sources.items, c_sources.items);
+    const check = b.addLibrary(.{
+        .name = "bones_engine_check",
+        .root_module = check_mod,
+        .linkage = .static,
     });
+    const check_step = b.step("check", "Compile the engine without linking");
+    check_step.dependOn(&check.step);
 
-    mod.addIncludePath(b.path(EnginePaths.engine_src));
-    mod.addIncludePath(b.path(EnginePaths.third_party));
-    mod.addIncludePath(b.path(EnginePaths.third_party ++ "/bullet"));
-    mod.addCMacro("NOMINMAX", "1");
-    mod.addCMacro("_CRT_SECURE_NO_WARNINGS", "1");
-    mod.addCMacro("EDITOR", "1");
-    if (optimize == .debug) mod.addCMacro("DEBUG", "1");
-    if (is_windows) {
-        mod.addCMacro("_WIN32", "1");
-        mod.addCMacro("_WIN64", "1");
-    } else {
-        mod.addCMacro("__LINUX__", "1");
-    }
-
-    mod.addCSourceFiles(.{
-        .files = cpp_sources.items,
-        .flags = &.{ "-std=c++17", "-fpermissive", "-Wno-everything" },
-    });
-    mod.addCSourceFiles(.{
-        .files = c_sources.items,
-        .flags = &.{"-std=c11"},
-        .language = .c,
-    });
-
+    const mod = createEngineModule(b, target, optimize, is_windows, cpp_sources.items, c_sources.items);
     const exe = b.addExecutable(.{
         .name = "bones_editor",
         .root_module = mod,
