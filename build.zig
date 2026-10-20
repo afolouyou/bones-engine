@@ -144,6 +144,7 @@ pub fn build(b: *std.Build) void {
         exe.root_module.linkSystemLibrary("dbghelp", .{});
         exe.root_module.linkSystemLibrary("psapi", .{});
     } else {
+        exe.root_module.addLibraryPath(b.path(EnginePaths.third_party ++ "/libs"));
         exe.root_module.linkSystemLibrary("SDL3", .{});
         exe.root_module.linkSystemLibrary("freetype", .{});
         exe.root_module.linkSystemLibrary("curl", .{});
