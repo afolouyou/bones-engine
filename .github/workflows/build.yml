@@ -16,7 +16,7 @@ jobs:
     container: archlinux:latest
     steps:
       - name: Install toolchain and dependencies
-        run: pacman -Syu --noconfirm git nodejs zig sdl3 freetype2 assimp curl openssl xorg-server-xvfb xorg-xauth mesa
+        run: pacman -Syu --noconfirm git nodejs zig sdl3 freetype2 assimp curl openssl mesa libglvnd
 
       - uses: actions/checkout@v4
 
@@ -26,10 +26,10 @@ jobs:
       - name: Run unit tests and editor smoke test
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
-          SDL_VIDEODRIVER: x11
+          SDL_VIDEODRIVER: offscreen
         run: |
           cd zig-out/bin
-          timeout 25 xvfb-run -a -s "-screen 0 1280x720x24" stdbuf -oL -eL ./bones_editor > editor.log 2>&1 || true
+          timeout 25 stdbuf -oL -eL ./bones_editor > editor.log 2>&1 || true
           sed -i 's/\x1b\[[0-9;]*m//g' editor.log
           tail -40 editor.log
           grep -q 'Unit Tests finished!' editor.log || { echo "Engine did not finish the unit tests"; exit 1; }
