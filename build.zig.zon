@@ -1,0 +1,17 @@
+.{
+    .name = .xenity_engine,
+    .version = "1.2.2",
+    .fingerprint = 0xe2855ae5a3e65e3e,
+    .minimum_zig_version = "0.17.0",
+    .dependencies = .{},
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "engine",
+        "app",
+        "third_party",
+        "LICENSE",
+        "README.md",
+        "TODO.md",
+    },
+}

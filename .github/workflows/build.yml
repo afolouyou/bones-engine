@@ -10,18 +10,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  windows-msvc:
-    name: ${{ matrix.configuration }} (x64)
-    runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        configuration: [Release Editor, Release Engine]
-
+  linux:
+    name: Linux (Zig)
+    runs-on: ubuntu-latest
+    container: archlinux:latest
     steps:
+      - name: Install toolchain and dependencies
+        run: pacman -Syu --noconfirm git nodejs zig sdl3 freetype2 assimp curl openssl
+
       - uses: actions/checkout@v4
 
-      - uses: microsoft/setup-msbuild@v2
-
-      - name: Build solution
-        run: msbuild Xenity_Engine.sln /m /nologo /verbosity:minimal "/p:Configuration=${{ matrix.configuration }}" /p:Platform=x64
+      - name: Build
+        run: zig build

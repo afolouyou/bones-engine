@@ -1,6 +1,6 @@
 # Xenity Engine
 
-Xenity Engine is a crossplatform game engine based on GameObjects and Components for PlayStation Portable, PsVita, PS3 and Windows.
+Xenity Engine is a crossplatform game engine based on GameObjects and Components for Windows, Linux and PS3.
 
 [Xenity Scripting Documentation](https://fewnity.github.io/Xenity-Engine/script_api_reference/scripting_api_reference.html)
 
@@ -22,8 +22,6 @@ If you want to improve the engine, here is the [TODO list](https://github.com/Fe
 | Status | Platform |
 |-|-|
 ✔️ | Windows
-✔️ | PlayStation Portable
-✔️ | PlayStation Vita
 ✔️ | PlayStation 3
 🚧 | Linux (The UI is a bit glitchy, missing audio and build system)
 
@@ -48,8 +46,7 @@ Features:
 
 > [!NOTE]
 > If you want to compile a game in the editor, you have to set `Compiler path` in the `Engine Settings` menu (Window->Engine Settings).<br>
-> `Compiler path` is by default `C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build`, change this if your Visual Studio installation/version is different.<br>
-> You can set the `PPSSPP location` for Build And Run for PSP builds.
+> `Compiler path` is by default `C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build`, change this if your Visual Studio installation/version is different.
 
 ## How to use the editor
 ### How to play the game in the editor
@@ -59,10 +56,10 @@ Features:
 - Open the Build Settings menu in "File->Build Settings"
 - Select the platform
 - Click on build
-(For PSP, PS3 and PsVita, you will need Docker Desktop installed and configured).
+(For PS3, you will need Docker Desktop installed and configured).
 
 ## Docker Setup
-Docker Desktop is needed to compile PSP, PS3 and PsVita games.<br>
+Docker Desktop is needed to compile PS3 games.<br>
 Download Docker Desktop: https://www.docker.com/products/docker-desktop/
 
 Then finish the docker install in Xenity. Go in "Window->Docker Configuration", the process can take several minutes especially if you have a slow computer or a slow internet connection. (The editor will freeze).
@@ -76,9 +73,29 @@ Mesh: `.obj .fbx`
 
 Font: `.ttf`
 
-## How to compile the engine in Visual Studio
-- Set the project `Xenity_Engine_Executable` as startup project.
-- Compile `Engine` configuration then `Editor` to generate all dll files.
+## How to compile the engine
+
+The build uses [Zig](https://ziglang.org/) (0.17 or newer) and works on Linux. PS3 builds still use the PSL1GHT Makefile inside Docker.
+
+On Linux, install the dependencies first: SDL3, FreeType, Assimp, curl and OpenSSL (for Arch: `sudo pacman -S sdl3 freetype2 assimp curl openssl`).
+
+```sh
+zig build                     # editor + runtime, installed to zig-out/bin
+zig build run                 # build and run the editor
+zig build -Doptimize=ReleaseFast
+```
+
+`zig build` also copies the runtime assets (`engine_assets`, `public_engine_assets`, `icons`, `vscodeSample`, `plugins`) next to the executable, and the Windows DLLs when targeting Windows.
+
+## Repository layout
+
+- `engine/src` — engine runtime (`engine/`), editor (`editor/`), platform code (`windows/`, `ps3/`) and unit tests (`unit_tests/`).
+- `app/src` — executable entry point.
+- `app/assets` — runtime assets copied next to the executable.
+- `app/res` — Windows resources (icon, `.rc`).
+- `app/packaging` — Dockerfile, PS3 Makefile and shader compilation script.
+- `third_party` — vendored libraries (headers in `third_party/<lib>`, prebuilt binaries in `third_party/libs`).
+- `build.zig` — build definition.
 
 ## How the engine internally works
 
@@ -102,13 +119,13 @@ The code of this repository is under the MIT license.
 https://github.com/Fewnity/Xenity-Engine-SDK
 
 ## Used libraries
-Stb (used: stb_image 2.23 (later versions do not work on PSP), stb_image_resize 0.97, stb_image_write 1.16): https://github.com/nothings/stb
+Stb (used: stb_image 2.23, stb_image_resize 0.97, stb_image_write 1.16): https://github.com/nothings/stb
 
 drmp3 v0.6.40 & drwav v0.13.17: https://github.com/mackron/dr_libs
 
 JSON for Modern C++ v3.11.3: https://github.com/nlohmann/json
 
-GLM (slightly modified for PS2): https://github.com/g-truc/glm
+GLM: https://github.com/g-truc/glm
 
 Bullet 2.82 (slightly modified to fix compilation): https://code.google.com/archive/p/bullet/downloads
 
@@ -124,6 +141,3 @@ ImGui Docking branch (1.91.8 WIP): https://github.com/ocornut/imgui
 SDL (3.2): https://github.com/libsdl-org/SDL
 
 Glad v2.0.8 (gl 4.6 compatibilty mode): https://gen.glad.sh/
-
-### PsVita specific: 
-VitaGL (029ddbe): (Compiled with HAVE_GLSL_SUPPORT=1 flag enabled, NO_DEBUG=1 for release and HAVE_SHARK_LOG=1 LOG_ERRORS=2 for debug) https://github.com/Rinnegatamante/vitaGL

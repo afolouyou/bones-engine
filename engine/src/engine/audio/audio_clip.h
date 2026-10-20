@@ -1,0 +1,83 @@
+// SPDX-License-Identifier: MIT
+//
+// Copyright (c) 2022-2026 Gregory Machefer (Fewnity)
+//
+// This file is part of Xenity Engine
+
+#pragma once
+#include <engine/api.h>
+
+#include <memory>
+#include <map>
+
+#include <engine/file_system/file_reference.h>
+#include <engine/reflection/reflection.h>
+#include <engine/application.h>
+
+class AudioClipSettings : public Reflective
+{
+public:
+	bool m_loadedInMemory = false;
+
+	ReflectiveData GetReflectiveData() override;
+};
+
+class AudioClipSettingsStandalone : public AudioClipSettings
+{
+public:
+};
+
+class AudioClipSettingsPS3 : public AudioClipSettings
+{
+public:
+};
+
+class API AudioClip : public FileReference
+{
+public:
+	AudioClip();
+
+protected:
+	friend class AudioClipStream;
+	friend class ProjectManager;
+
+	[[nodiscard]] ReflectiveData GetReflectiveData() override;
+	[[nodiscard]] ReflectiveData GetMetaReflectiveData(AssetPlatform platform) override;
+	[[nodiscard]] static std::shared_ptr<AudioClip> MakeAudioClip();
+
+	void LoadFileReference(const LoadOptions& loadOptions) override;
+	void UnloadFileReference() override;
+	void OnReflectionUpdated() override;
+
+	// Struct that stores the full audio data if the clip is stored in memory
+	struct AudioMemory
+	{
+		size_t m_dataLength = 0;
+		short* m_data = nullptr;
+	};
+
+	std::map<AssetPlatform, std::unique_ptr<AudioClipSettings>> m_settings;
+
+	/**
+	* [Internal] Is the audio clip stored in memory?
+	*/
+	[[nodiscard]] inline bool IsStoredInMemory() const
+	{
+		return m_settings.at(Application::GetAssetPlatform())->m_loadedInMemory;
+	}
+
+	inline void SetIsStoredInMemory(bool value) const
+	{
+		m_settings.at(Application::GetAssetPlatform())->m_loadedInMemory = value;
+	}
+
+	/**
+	* [Internal] Get the audio memory data (to use if the audio is stored in memory)
+	*/
+	[[nodiscard]] inline const AudioMemory& GetAudioMemory() const
+	{
+		return m_audioMemory;
+	}
+
+	AudioMemory m_audioMemory;
+};

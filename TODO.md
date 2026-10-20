@@ -5,7 +5,7 @@ Empty, add tasks from the list below.
 ## Can be done for a later release
 
 ### High priority
-- Try fix include on Linux in asset selection menu and EditorUI
+- Fix include on Linux in asset selection menu and EditorUI
 - Re-add init component ordering in LoadScene and order component update
 - Add an error if game.cpp and game.h are not found
 - Disable the ability to move and delete game.cpp and game.h
@@ -16,7 +16,6 @@ Empty, add tasks from the list below.
 - Add unit tests for Awake/Start/Update functions
 - Add a function to resize a submesh (resize only if size is different, usefull for text)
 - Try to remove rotation and local rotation from transform, maybe remove position
-- Check why the tv texture does not load on PSP (Specific to my project)
 - Try to build game dll with debug symbols for debugging in visual studio
 - Check if force inline for GLM is better or not
 - Reduce cache size by deleting executable file
@@ -30,24 +29,18 @@ Empty, add tasks from the list below.
 - Add a property window on components to have values in a new window
 - Add a Find function for child only in a gameobject
 - Check memory leak when removing an item from vector in the EditorUI (element is removed from the list but not deleted)
-- Check why 480p resolution on PS3 stretch the screen
 
 ### Low priority (Not important features or complex tasks)
 - Multiple gameobject selection (Very complex task)
 - Try to remove some enable_shared_from_this (GameObject, Transform, Component, Filereference)
 - Use octree for light culling
 - Add the ability to control the game from the editor with network (load scene, quit...)
-- Add CI support
 - Add a way to create a hash from a file (and cross platform)
 - Add an option to cook assets only
 - Do not create a new mesh data in text renderer
-- Check peekinput for PSP instead of sceCtrlReadBufferPositive if it's better for performances
-- Reorder if needed the vertex descriptor for platforms like PSP in the cooker
 - Use VAO for lines (create one sphere model for all gizmo, create one vao for the grid when camera moves)
 - Pre-open audio file for faster loading
 - Compress scene json files in builds
-- Add a debug option to show what assets are loaded in vram for psp
-- Increase PsVita newlib memory?
 - Add event for input system for the screen size and mouse position
 - Add event in SceneManager for UpdateWindowTitle?
 - Clean Component::SetGameObject code
