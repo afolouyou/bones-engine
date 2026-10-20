@@ -16,9 +16,43 @@ jobs:
     container: archlinux:latest
     steps:
       - name: Install toolchain and dependencies
-        run: pacman -Syu --noconfirm git nodejs zig sdl3 freetype2 assimp curl openssl
+        run: pacman -Syu --noconfirm git nodejs zig sdl3 freetype2 assimp curl openssl xorg-server-xvfb mesa
 
       - uses: actions/checkout@v4
+
+      - name: Build
+        run: zig build
+
+      - name: Run unit tests and editor smoke test
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          SDL_VIDEODRIVER: x11
+        run: |
+          cd zig-out/bin
+          timeout 20 xvfb-run -a ./bones_editor > editor.log 2>&1 || true
+          sed -i 's/\x1b\[[0-9;]*m//g' editor.log
+          if grep -q 'Test:$' editor.log; then
+            echo "Unit test failure:"
+            cat editor.log
+            exit 1
+          fi
+          grep -q 'Unit Tests finished!' editor.log
+          grep -q 'Engine fully initiated' editor.log
+          if grep -q 'Cannot link the shader' editor.log; then
+            echo "Shader compilation failure:"
+            cat editor.log
+            exit 1
+          fi
+
+  windows:
+    name: Windows (Zig/MSVC)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.17.0
 
       - name: Build
         run: zig build

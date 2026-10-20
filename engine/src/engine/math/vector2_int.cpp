@@ -2,7 +2,7 @@
 //
 // Copyright (c) 2022-2026 Gregory Machefer (Fewnity)
 //
-// This file is part of Xenity Engine
+// This file is part of Bones Engine
 
 #include "vector2_int.h"
 #include "vector3.h"

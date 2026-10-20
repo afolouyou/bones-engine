@@ -2,13 +2,13 @@
 //
 // Copyright (c) 2022-2026 Gregory Machefer (Fewnity)
 //
-// This file is part of Xenity Engine
+// This file is part of Bones Engine
 
 #include "create_project_menu.h"
 
 #if defined(_WIN32) || defined(_WIN64)
-#include <Windows.h>
-#include <ShlObj.h>
+#include <windows.h>
+#include <shlobj.h>
 #endif
 #include <imgui/imgui.h>
 
@@ -27,9 +27,9 @@ CreateProjectMenu::CreateProjectMenu()
 
 	group = MenuGroup::Menu_Create_Project;
 #if defined(_WIN32) || defined(_WIN64)
-	// Get Xenity's default project location
-	TCHAR docPath[MAX_PATH];
-	if (SUCCEEDED(SHGetFolderPath(NULL,
+	// Get Bones Engine's default project location
+	wchar_t docPath[MAX_PATH];
+	if (SUCCEEDED(SHGetFolderPathW(NULL,
 		CSIDL_MYDOCUMENTS,
 		NULL,
 		0,
@@ -37,7 +37,7 @@ CreateProjectMenu::CreateProjectMenu()
 	{
 		std::wstring wStringDocPath = &docPath[0]; //convert to wstring
 		std::string stringDocPath(wStringDocPath.begin(), wStringDocPath.end()); //and convert to string.
-		m_projectParentDir = stringDocPath + "\\Xenity_Projects\\";
+		m_projectParentDir = stringDocPath + "\\Bones_Projects\\";
 		// Create the directory if not found
 		const bool folderCreateResult = FileSystem::CreateFolder(m_projectParentDir);
 		if (!folderCreateResult) 

@@ -19,25 +19,26 @@
 // -------------------------------------------------- Version
 //
 // Increase those numbers when you make a new release
-#define ENGINE_MAJOR_VERSION 1
-#define ENGINE_MINOR_VERSION 2
-#define ENGINE_PATCH_VERSION 2
+#define ENGINE_MAJOR_VERSION 0
+#define ENGINE_MINOR_VERSION 1
+#define ENGINE_PATCH_VERSION 0
 
-#define ENGINE_VERSION TO_STRING(ENGINE_MAJOR_VERSION) "." TO_STRING(ENGINE_MINOR_VERSION) "." TO_STRING(ENGINE_PATCH_VERSION)
+// Public release label for Bones Engine 0.01.
+#define ENGINE_VERSION "0.01"
 
 //
 // -------------------------------------------------- Files/directories names
 //
 // General
-#define PS3_DATA_FOLDER "xenity_engine/"
+#define PS3_DATA_FOLDER "bones_engine/"
 
 #define PROJECT_SETTINGS_FILE_NAME "project_settings.json"
 #define META_EXTENSION ".meta"
 #define PROJECTS_LIST_FILE "projects.json"
 
 // Compiler
-#define ENGINE_EDITOR_FOLDER "Xenity_Editor"
-#define ENGINE_GAME_FOLDER "Xenity_Engine"
+#define ENGINE_EDITOR_FOLDER "Bones_Editor"
+#define ENGINE_GAME_FOLDER "Bones_Engine"
 #define ASSETS_FOLDER "assets/"
 #define ENGINE_ASSETS_FOLDER "engine_assets/"
 #define PUBLIC_ENGINE_ASSETS_FOLDER "public_engine_assets/"
@@ -45,7 +46,7 @@
 #define MSVC_START_FILE_32BITS "vcvars32.bat"
 
 // Debug
-#define DEBUG_LOG_FILE "xenity_engine_debug.txt"
+#define DEBUG_LOG_FILE "bones_engine_debug.txt"
 
 //
 // -------------------------------------------------- Audio

@@ -1,7 +1,7 @@
 {
     "configurations": [
       {
-        "name": "Xenity",
+        "name": "Bones",
         "includePath": [
           "${workspaceFolder}/**",
           "{ENGINE_SOURCE_PATH}**",

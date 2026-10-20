@@ -2,7 +2,7 @@
 //
 // Copyright (c) 2022-2026 Gregory Machefer (Fewnity)
 //
-// This file is part of Xenity Engine
+// This file is part of Bones Engine
 
 #include "engine.h"
 
@@ -258,6 +258,18 @@ void Engine::CheckEvents()
 
 		switch (event.type)
 		{
+		case SDL_EVENT_QUIT:
+			// Sent by SDL when the process receives SIGINT/SIGTERM, or by the OS on shutdown.
+			if (ProjectManager::GetProjectState() != ProjectState::Loading)
+			{
+				Quit();
+				if (!s_isRunning)
+				{
+					return;
+				}
+			}
+			break;
+
 		case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
 			if (event.window.windowID == SDL_GetWindowID(Window::s_window) && ProjectManager::GetProjectState() != ProjectState::Loading)
 			{

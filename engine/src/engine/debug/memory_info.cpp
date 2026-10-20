@@ -5,9 +5,9 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
-#include <Psapi.h>
+#include <psapi.h>
 #include <dxgi1_4.h>
-#include <Processthreadsapi.h>
+#include <processthreadsapi.h>
 #endif
 
 #if defined(_WIN32) || defined(_WIN64)

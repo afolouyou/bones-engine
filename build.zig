@@ -89,7 +89,7 @@ pub fn build(b: *std.Build) void {
     });
 
     const exe = b.addExecutable(.{
-        .name = "xenity_editor",
+        .name = "bones_editor",
         .root_module = mod,
     });
 
@@ -105,6 +105,16 @@ pub fn build(b: *std.Build) void {
         exe.root_module.linkSystemLibrary("ws2_32", .{});
         exe.root_module.linkSystemLibrary("winmm", .{});
         exe.root_module.linkSystemLibrary("crypt32", .{});
+        exe.root_module.linkSystemLibrary("wldap32", .{});
+        exe.root_module.linkSystemLibrary("shell32", .{});
+        exe.root_module.linkSystemLibrary("ole32", .{});
+        exe.root_module.linkSystemLibrary("uuid", .{});
+        exe.root_module.linkSystemLibrary("user32", .{});
+        exe.root_module.linkSystemLibrary("gdi32", .{});
+        exe.root_module.linkSystemLibrary("advapi32", .{});
+        exe.root_module.linkSystemLibrary("comdlg32", .{});
+        exe.root_module.linkSystemLibrary("dbghelp", .{});
+        exe.root_module.linkSystemLibrary("psapi", .{});
     } else {
         exe.root_module.linkSystemLibrary("SDL3", .{});
         exe.root_module.linkSystemLibrary("freetype", .{});

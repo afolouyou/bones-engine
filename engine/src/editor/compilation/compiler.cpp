@@ -2,7 +2,7 @@
 //
 // Copyright (c) 2022-2026 Gregory Machefer (Fewnity)
 //
-// This file is part of Xenity Engine
+// This file is part of Bones Engine
 
 #include "compiler.h"
 
@@ -334,7 +334,7 @@ DockerState Compiler::CheckDockerState(Event<DockerState>* callback)
 		{
 			system("docker images -f r=u"); // Workaround for docker image inspect not working when resource saver mode is enabled
 
-			const int checkDockerImageResult = system("docker image inspect xenity_1_0_0 2>nul 1>nul");
+			const int checkDockerImageResult = system("docker image inspect bones_0_1_0 2>nul 1>nul");
 			if (checkDockerImageResult != 0)
 			{
 				result = DockerState::MISSING_IMAGE;
@@ -487,7 +487,7 @@ void Compiler::CleanDestinationFolder(const std::string& exportPath)
 		fs::remove(exportPath + "freetype.dll");
 		fs::remove(exportPath + "game.dll");
 		fs::remove(exportPath + "SDL3.dll");
-		fs::remove(exportPath + "Xenity_Engine.dll");
+		fs::remove(exportPath + "Bones_Engine.dll");
 
 		fs::remove(exportPath + "data.xenb");
 		fs::remove(exportPath + "db.xenb");
@@ -732,7 +732,7 @@ CompileResult Compiler::CompileWindows(const CompilerParams& params)
 		// Copy engine editor lib to the temp build folder
 		CopyUtils::AddCopyEntry(false, engineLibPath, params.tempPath + ENGINE_EDITOR_FOLDER + ".lib");
 		// Copy editor header
-		CopyUtils::AddCopyEntry(false, s_engineProjectLocation + "engine/src/xenity_editor.h", params.tempPath + "xenity_editor.h");
+		CopyUtils::AddCopyEntry(false, s_engineProjectLocation + "engine/src/bones_editor.h", params.tempPath + "bones_editor.h");
 	}
 	else // In build mode:
 	{
@@ -751,7 +751,7 @@ CompileResult Compiler::CompileWindows(const CompilerParams& params)
 
 	// Copy engine headers to the temp build folder
 	CopyUtils::AddCopyEntry(true, s_engineProjectLocation + "engine/src/engine/", params.tempPath + "engine/");
-	CopyUtils::AddCopyEntry(false, s_engineProjectLocation + "engine/src/xenity.h", params.tempPath + "xenity.h");
+	CopyUtils::AddCopyEntry(false, s_engineProjectLocation + "engine/src/bones.h", params.tempPath + "bones.h");
 	CopyUtils::AddCopyEntry(false, s_engineProjectLocation + "app/src/main.cpp", params.tempPath + "main.cpp");
 	const bool headerCopyResult = CopyUtils::ExecuteCopyEntries();
 	if (!headerCopyResult)
@@ -836,7 +836,7 @@ CompileResult Compiler::CompileWindows(const CompilerParams& params)
 bool Compiler::CreateDockerImage()
 {
 	const std::string dockerFile = s_engineProjectLocation + "app/packaging/Dockerfile";
-	const int result = system(("docker build -f \"" + dockerFile + "\" -t xenity_1_0_0 . 1>nul").c_str());
+	const int result = system(("docker build -f \"" + dockerFile + "\" -t bones_0_1_0 . 1>nul").c_str());
 	return result == 0;
 }
 
@@ -844,7 +844,7 @@ void Compiler::CancelCompilation()
 {
 	if (s_compilationMethod == CompilationMethod::DOCKER)
 	{
-		system("docker stop -t 0 XenityEngineBuild");
+		system("docker stop -t 0 BonesEngineBuild");
 		s_isCompilationCancelled = true;
 	}
 }
@@ -897,8 +897,8 @@ CompileResult Compiler::CompileInDocker(const CompilerParams& params)
 	}
 
 	// We have to stop and remove the container to recreate it
-	[[maybe_unused]] const int stopResult = system("docker stop XenityEngineBuild");
-	[[maybe_unused]] const int removeResult = system("docker container remove XenityEngineBuild");
+	[[maybe_unused]] const int stopResult = system("docker stop BonesEngineBuild");
+	[[maybe_unused]] const int removeResult = system("docker container remove BonesEngineBuild");
 
 	unsigned int threadNumber = std::thread::hardware_concurrency();
 	if (threadNumber == 0) // This function may returns 0, use 1 instead
@@ -910,7 +910,7 @@ CompileResult Compiler::CompileInDocker(const CompilerParams& params)
 
 	if (params.buildType == BuildType::BuildShaders)
 	{
-		createCommand = "docker create --name XenityEngineBuild xenity_1_0_0 /bin/bash -c -it \"cd /home/XenityBuild/ ; ./compile_shaders.sh\"";
+		createCommand = "docker create --name BonesEngineBuild bones_0_1_0 /bin/bash -c -it \"cd /home/BonesBuild/ ; ./compile_shaders.sh\"";
 	}
 	else if (params.buildPlatform.platform == Platform::P_PS3)
 	{
@@ -920,7 +920,7 @@ CompileResult Compiler::CompileInDocker(const CompilerParams& params)
 		const std::string debugDefine = platformSettings->isDebugMode ? " DEBUG=1" : "";
 		const std::string profilerDefine = platformSettings->enableProfiler ? " PROFILER=1" : "";
 		paramsStr += debugDefine + profilerDefine;
-		createCommand = "docker create --name XenityEngineBuild xenity_1_0_0 /bin/bash -c -it \"cd /home/XenityBuild/ ; " + removeSourceCommand + "make -j" + std::to_string(threadNumber) + paramsStr + "\"";
+		createCommand = "docker create --name BonesEngineBuild bones_0_1_0 /bin/bash -c -it \"cd /home/BonesBuild/ ; " + removeSourceCommand + "make -j" + std::to_string(threadNumber) + paramsStr + "\"";
 	}
 
 	[[maybe_unused]] const int createResult = system(createCommand.c_str());
@@ -928,15 +928,15 @@ CompileResult Compiler::CompileInDocker(const CompilerParams& params)
 	if (params.buildType != BuildType::BuildShaders)
 	{
 		// Copy source code and libraries
-		const std::string copyEngineSourceCommand = "docker cp \"" + s_engineProjectLocation + "engine/src\" XenityEngineBuild:\"/home/XenityBuild/Source\"";
+		const std::string copyEngineSourceCommand = "docker cp \"" + s_engineProjectLocation + "engine/src\" BonesEngineBuild:\"/home/BonesBuild/Source\"";
 		[[maybe_unused]] const int copyCodeResult = system(copyEngineSourceCommand.c_str()); // Engine's source code + (game's code but to change later)
-		const std::string copyEngineLibrariesCommand = "docker cp \"" + s_engineProjectLocation + "third_party\" XenityEngineBuild:\"/home/XenityBuild/include\"";
+		const std::string copyEngineLibrariesCommand = "docker cp \"" + s_engineProjectLocation + "third_party\" BonesEngineBuild:\"/home/BonesBuild/include\"";
 		[[maybe_unused]] const int copyLibrariesResult = system(copyEngineLibrariesCommand.c_str()); // Engine's libraries
-		const std::string copyMainCommand = "docker cp \"" + s_engineProjectLocation + "app/src/main.cpp\" XenityEngineBuild:\"/home/XenityBuild/Source/\"";
+		const std::string copyMainCommand = "docker cp \"" + s_engineProjectLocation + "app/src/main.cpp\" BonesEngineBuild:\"/home/BonesBuild/Source/\"";
 		[[maybe_unused]] const int copyMainResult = system(copyMainCommand.c_str()); // main.cpp file
 
 		// Copy the PS3 make file
-		const std::string copyMakeFileCommand = "docker cp \"" + s_engineProjectLocation + "app/packaging/Makefile.PS3\" XenityEngineBuild:\"/home/XenityBuild/Makefile\"";
+		const std::string copyMakeFileCommand = "docker cp \"" + s_engineProjectLocation + "app/packaging/Makefile.PS3\" BonesEngineBuild:\"/home/BonesBuild/Makefile\"";
 		[[maybe_unused]] const int copyMakeFileCommandResult = system(copyMakeFileCommand.c_str());
 
 		// Copy cache for faster compilation
@@ -944,7 +944,7 @@ CompileResult Compiler::CompileInDocker(const CompilerParams& params)
 		{
 			if (CompilerCache::CheckIfCacheExists(params.buildPlatform.platform))
 			{
-				const std::string copyCacheCommand = "docker cp \"" + CompilerCache::GetCachePath(params.buildPlatform.platform) + "build/\" XenityEngineBuild:\"/home/XenityBuild/\"";
+				const std::string copyCacheCommand = "docker cp \"" + CompilerCache::GetCachePath(params.buildPlatform.platform) + "build/\" BonesEngineBuild:\"/home/BonesBuild/\"";
 				[[maybe_unused]] const int copyCacheResult = system(copyCacheCommand.c_str());
 			}
 		}
@@ -960,14 +960,14 @@ CompileResult Compiler::CompileInDocker(const CompilerParams& params)
 		}
 
 		// Copy game source from the build folder to docker
-		const std::string copyGameSourceCommand = "docker cp \"" + params.tempPath + "source\" XenityEngineBuild:\"/home/XenityBuild/Source/game_code/\"";
+		const std::string copyGameSourceCommand = "docker cp \"" + params.tempPath + "source\" BonesEngineBuild:\"/home/BonesBuild/Source/game_code/\"";
 		[[maybe_unused]] const int copyGameSourceResult = system(copyGameSourceCommand.c_str());
 	}
 	else
 	{
 		FixCompileShadersScript(params.tempPath + "compile_shaders.sh");
 
-		const std::string copyCompileShadersCommand = "docker cp \"" + params.tempPath + "compile_shaders.sh\" XenityEngineBuild:\"/home/XenityBuild/compile_shaders.sh\"";
+		const std::string copyCompileShadersCommand = "docker cp \"" + params.tempPath + "compile_shaders.sh\" BonesEngineBuild:\"/home/BonesBuild/compile_shaders.sh\"";
 		[[maybe_unused]] const int copyCompileShadersCommandResult = system(copyCompileShadersCommand.c_str()); // compile shaders script file
 	}
 
@@ -992,7 +992,7 @@ CompileResult Compiler::CompileInDocker(const CompilerParams& params)
 	Benchmark dockerCompilationBenchmark;
 	dockerCompilationBenchmark.Start();
 	// Start compilation
-	const std::string startCommand = "docker start -a XenityEngineBuild";
+	const std::string startCommand = "docker start -a BonesEngineBuild";
 	[[maybe_unused]] const int startResult = system(startCommand.c_str());
 	dockerCompilationBenchmark.Stop();
 	s_timings.dockerCompileTime = dockerCompilationBenchmark.GetMicroSeconds();
@@ -1010,7 +1010,7 @@ CompileResult Compiler::CompileInDocker(const CompilerParams& params)
 			return CompileResult::ERROR_DOCKER_SHADERS_COMPILATION;
 		}
 
-		const std::string copyCompiledShadersCommand = "docker cp XenityEngineBuild:\"/home/XenityBuild/shaders_to_compile/\" \"" + params.tempPath + "cooked_assets/" + "\"";
+		const std::string copyCompiledShadersCommand = "docker cp BonesEngineBuild:\"/home/BonesBuild/shaders_to_compile/\" \"" + params.tempPath + "cooked_assets/" + "\"";
 		[[maybe_unused]] const int copyCompiledShadersCommandResult = system(copyCompiledShadersCommand.c_str());
 	}
 	else
@@ -1020,26 +1020,26 @@ CompileResult Compiler::CompileInDocker(const CompilerParams& params)
 			return CompileResult::ERROR_DOCKER_COMPILATION;
 		}
 
-		const std::string fileName = "XenityBuild.self";
+		const std::string fileName = "BonesBuild.self";
 
 		// Copy cache files
 		const std::string cacheFolder = params.tempPath + "docker_cache/";
 		fs::create_directories(cacheFolder);
-		const std::string copyCacheCommand = "docker cp XenityEngineBuild:\"/home/XenityBuild/build/\" \"" + cacheFolder + "\"";
+		const std::string copyCacheCommand = "docker cp BonesEngineBuild:\"/home/BonesBuild/build/\" \"" + cacheFolder + "\"";
 		[[maybe_unused]] const int copyCacheCommandResult = system(copyCacheCommand.c_str());
 
 		CompilerCache::UpdateCache(cacheFolder, params.buildPlatform.platform);
 
 		// Copy final file
-		std::string copyGameFileCommand = "docker cp XenityEngineBuild:\"/home/XenityBuild/build/" + fileName + "\" \"" + params.exportPath + fileName + "\"";
+		std::string copyGameFileCommand = "docker cp BonesEngineBuild:\"/home/BonesBuild/build/" + fileName + "\" \"" + params.exportPath + fileName + "\"";
 		if (params.buildPlatform.platform == Platform::P_PS3)
 		{
-			copyGameFileCommand = "docker cp XenityEngineBuild:\"/home/XenityBuild/" + fileName + "\" \"" + params.exportPath + fileName + "\"";
+			copyGameFileCommand = "docker cp BonesEngineBuild:\"/home/BonesBuild/" + fileName + "\" \"" + params.exportPath + fileName + "\"";
 		}
 		const int copyGameFileResult = system(copyGameFileCommand.c_str()); // Engine's source code + (game's code but to change later)
 
-		const std::string fakeSelfFileName = "XenityBuild.fake.self";
-		const std::string copyFakeSelfCommand = "docker cp XenityEngineBuild:\"/home/XenityBuild/" + fakeSelfFileName + "\" \"" + params.exportPath + fakeSelfFileName + "\"";
+		const std::string fakeSelfFileName = "BonesBuild.fake.self";
+		const std::string copyFakeSelfCommand = "docker cp BonesEngineBuild:\"/home/BonesBuild/" + fakeSelfFileName + "\" \"" + params.exportPath + fakeSelfFileName + "\"";
 		[[maybe_unused]] const int copyFakeSelfResult = system(copyFakeSelfCommand.c_str());
 
 		if (copyGameFileResult != 0)
@@ -1055,7 +1055,7 @@ void Compiler::CopyAssetsToDocker(const CompilerParams& params)
 {
 	if (params.buildPlatform.platform == Platform::P_PS3)
 	{
-		const std::string copyShadersCommand = "docker cp \"" + params.tempPath + "cooked_assets/shaders_to_compile\" XenityEngineBuild:\"/home/XenityBuild\"";
+		const std::string copyShadersCommand = "docker cp \"" + params.tempPath + "cooked_assets/shaders_to_compile\" BonesEngineBuild:\"/home/BonesBuild\"";
 		[[maybe_unused]] const int copyShadersCommandResult = system(copyShadersCommand.c_str());
 	}
 }

@@ -2,7 +2,7 @@
 //
 // Copyright (c) 2022-2026 Gregory Machefer (Fewnity)
 //
-// This file is part of Xenity Engine
+// This file is part of Bones Engine
 
 #include "update_available_menu.h"
 
@@ -25,7 +25,7 @@ void UpdateAvailableMenu::Draw()
 		ImGui::Text("Please download the new version to get the latest features and bug fixes.");
 		if (ImGui::Button("View GitHub page"))
 		{
-			Editor::OpenLinkInWebBrowser("https://github.com/Fewnity/Xenity-Engine/releases");
+			Editor::OpenLinkInWebBrowser("https://github.com/afolouyou/bones-engine/releases");
 		}
 
 		CalculateWindowValues();

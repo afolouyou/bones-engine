@@ -2,12 +2,12 @@
 //
 // Copyright (c) 2022-2026 Gregory Machefer (Fewnity)
 //
-// This file is part of Xenity Engine
+// This file is part of Bones Engine
 
 #include "application.h"
 
 #if defined(_WIN32) || defined(_WIN64)
-#include <ShObjIdl.h>
+#include <shobjidl.h>
 #endif
 
 #include <engine/game_elements/gameplay_manager.h>
@@ -25,7 +25,7 @@ void Application::OpenURL(const std::string& url)
 
 #if defined(_WIN32) || defined(_WIN64)
 	const std::wstring wLink = std::wstring(url.begin(), url.end());
-	ShellExecute(nullptr, nullptr, wLink.c_str(), nullptr, nullptr, SW_SHOW);
+	ShellExecuteW(nullptr, nullptr, wLink.c_str(), nullptr, nullptr, SW_SHOW);
 #endif
 }
 
@@ -107,7 +107,7 @@ AssetPlatform Application::PlatformToAssetPlatform(Platform platform)
 	}
 }
 
-std::string Application::GetXenityVersion()
+std::string Application::GetBonesVersion()
 {
 	return ENGINE_VERSION;
 }

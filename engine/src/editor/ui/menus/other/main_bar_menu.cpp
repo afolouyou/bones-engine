@@ -2,7 +2,7 @@
 //
 // Copyright (c) 2022-2026 Gregory Machefer (Fewnity)
 //
-// This file is part of Xenity Engine
+// This file is part of Bones Engine
 
 #include "main_bar_menu.h"
 
@@ -608,13 +608,13 @@ void MainBarMenu::Draw()
 	{
 		if (ImGui::MenuItem("Documentation"))
 		{
-			Editor::OpenLinkInWebBrowser("https://fewnity.github.io/Xenity-Engine/script_api_reference/scripting_api_reference.html");
+			Editor::OpenLinkInWebBrowser("https://github.com/afolouyou/bones-engine");
 		}
 		if (ImGui::MenuItem("Project's GitHub"))
 		{
-			Editor::OpenLinkInWebBrowser("https://github.com/Fewnity/Xenity-Engine");
+			Editor::OpenLinkInWebBrowser("https://github.com/afolouyou/bones-engine");
 		}
-		if (ImGui::MenuItem("About Xenity Engine"))
+		if (ImGui::MenuItem("About Bones Engine"))
 		{
 			Editor::GetMenu<AboutMenu>()->SetActive(true);
 			Editor::GetMenu<AboutMenu>()->Focus();

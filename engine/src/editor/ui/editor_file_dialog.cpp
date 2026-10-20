@@ -2,7 +2,7 @@
 //
 // Copyright (c) 2022-2026 Gregory Machefer (Fewnity)
 //
-// This file is part of Xenity Engine
+// This file is part of Bones Engine
 
 #include <sstream>
 
@@ -13,8 +13,8 @@
 #if defined(EDITOR)
 #include <variant>
 #if defined(_WIN32) || defined(_WIN64)
-#include <Windows.h>
-#include <ShObjIdl.h>
+#include <windows.h>
+#include <shobjidl.h>
 #endif
 
 #include <editor/ui/editor_ui.h>

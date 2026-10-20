@@ -1,6 +1,6 @@
 #pragma once
 
-#include <xenity.h>
+#include <bones.h>
 #include <editor/plugin/api.h>
 
 class PluginTest : public Plugin

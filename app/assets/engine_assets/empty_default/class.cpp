@@ -1,5 +1,5 @@
 #include "{FILENAME}.h"
-#include <xenity.h>
+#include <bones.h>
 
 /**
 * Constructor

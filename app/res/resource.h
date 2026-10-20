@@ -1,6 +1,6 @@
 //{{NO_DEPENDENCIES}}
 // fichier Include Microsoft Visual C++.
-// Utilis� par Xenity_Engine_Executable.rc
+// Utilis� par Bones_Engine_Executable.rc
 //
 #define IDI_ICON2                       103
 

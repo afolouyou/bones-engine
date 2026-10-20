@@ -13,12 +13,12 @@ RUN apt install -y sudo
 # --------------------------- INSTALL PS3 SDK
 
 # Download ps3dev
-RUN cd /usr/local && wget https://github.com/Fewnity/Xenity-Engine-SDK/releases/download/v1/ps3dev-ubuntu-latest.tar.gz
+RUN cd /usr/local && wget https://github.com/afolouyou/bones-engine-SDK/releases/download/v1/ps3dev-ubuntu-latest.tar.gz
 # Extract files
 RUN cd /usr/local && tar -xvzf ps3dev-ubuntu-latest.tar.gz && rm ps3dev-ubuntu-latest.tar.gz
 
 # Download PSL1GHT
-RUN cd /usr/local && wget https://github.com/Fewnity/Xenity-Engine-SDK/releases/download/v1/PSL1GHT.tar.gz
+RUN cd /usr/local && wget https://github.com/afolouyou/bones-engine-SDK/releases/download/v1/PSL1GHT.tar.gz
 # Extract files
 RUN cd /usr/local && tar -xvzf PSL1GHT.tar.gz && rm PSL1GHT.tar.gz
 
@@ -33,7 +33,7 @@ RUN echo "export PSL1GHT=/usr/local/PSL1GHT/build" >> /root/.bashrc
 RUN echo "export PATH=\$PATH:/usr/local/PSL1GHT/tools/cgcomp" >> /root/.bashrc
 
 # --------------------------- Create build folders
-RUN cd /home/ && mkdir XenityBuild && cd XenityBuild && mkdir Source && mkdir build && mkdir include && mkdir shaders_to_compile
+RUN cd /home/ && mkdir BonesBuild && cd BonesBuild && mkdir Source && mkdir build && mkdir include && mkdir shaders_to_compile
 
 # Clean temp files
 RUN rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*

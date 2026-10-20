@@ -2,7 +2,7 @@
 //
 // Copyright (c) 2022-2026 Gregory Machefer (Fewnity)
 //
-// This file is part of Xenity Engine
+// This file is part of Bones Engine
 
 #include "select_project_menu.h"
 
@@ -305,8 +305,8 @@ void SelectProjectMenu::ShowProjectError(ProjectLoadingErrors error)
 {
 	if (error == ProjectLoadingErrors::NoAssetFolder)
 	{
-		EditorUI::OpenDialog("Error", "This is not a Xenity Project, no asset folder found.", DialogType::Dialog_Type_OK);
-		Debug::PrintError("[SelectProjectMenu::DrawProjectsList] This is not a Xenity Project", true);
+		EditorUI::OpenDialog("Error", "This is not a Bones Engine project, no asset folder found.", DialogType::Dialog_Type_OK);
+		Debug::PrintError("[SelectProjectMenu::DrawProjectsList] This is not a Bones Engine project", true);
 	}
 	else 
 	{

@@ -26,8 +26,8 @@ void UpdateChecker::CheckForUpdate(Event<bool>* onUpdateCheckedEvent)
 		CURLcode res;
 		std::string readBuffer;
 
-		curl_easy_setopt(curl, CURLOPT_URL, "https://api.github.com/repos/Fewnity/Xenity-Engine/releases");
-		curl_easy_setopt(curl, CURLOPT_USERAGENT, "Xenity");
+		curl_easy_setopt(curl, CURLOPT_URL, "https://api.github.com/repos/afolouyou/bones-engine/releases");
+		curl_easy_setopt(curl, CURLOPT_USERAGENT, "BonesEngine");
 		curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, "application/vnd.github+json");
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);

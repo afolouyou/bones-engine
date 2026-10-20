@@ -2,7 +2,7 @@
 //
 // Copyright (c) 2022-2026 Gregory Machefer (Fewnity)
 //
-// This file is part of Xenity Engine
+// This file is part of Bones Engine
 
 #include "crash_handler.h"
 
@@ -13,8 +13,8 @@
 #include <execinfo.h>
 #elif defined(_WIN32) || defined(_WIN64)
 #include <csignal>
-#include <Windows.h>
-#include <DbgHelp.h>
+#include <windows.h>
+#include <dbghelp.h>
 #endif
 
 #include <engine/file_system/file_system.h>
@@ -205,7 +205,7 @@ void CrashHandler::Init()
 
 bool CrashHandler::CallInTry(void (*function)())
 {
-#if defined(_WIN32) || defined(_WIN64)
+#if (defined(_WIN32) || defined(_WIN64)) && defined(_MSC_VER)
 	bool errorResult = false;
 	__try 
 	{

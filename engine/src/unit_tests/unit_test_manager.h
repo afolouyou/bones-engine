@@ -2,13 +2,16 @@
 //
 // Copyright (c) 2022-2026 Gregory Machefer (Fewnity)
 //
-// This file is part of Xenity Engine
+// This file is part of Bones Engine
 
 #pragma once
 
 #include <string>
 #include <memory>
 #include <limits>
+#include <cmath>
+
+#include <engine/math/vector3.h>
 
 class GameObject;
 
@@ -40,6 +43,19 @@ public:
 	bool Compare(const T& valueA, const U& valueB) const
 	{
 		return valueA == valueB;
+	}
+
+	/**
+	* @brief Compare two vectors with a tolerance.
+	* Rotation conversions produce small floating-point differences between compilers,
+	* so exact equality is not reliable for Vector3 values.
+	*/
+	bool Compare(const Vector3& valueA, const Vector3& valueB) const
+	{
+		constexpr float epsilon = 1e-4f;
+		return std::abs(valueA.x - valueB.x) <= epsilon
+			&& std::abs(valueA.y - valueB.y) <= epsilon
+			&& std::abs(valueA.z - valueB.z) <= epsilon;
 	}
 
 	/**

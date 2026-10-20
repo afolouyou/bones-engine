@@ -2,7 +2,7 @@
 //
 // Copyright (c) 2022-2026 Gregory Machefer (Fewnity)
 //
-// This file is part of Xenity Engine
+// This file is part of Bones Engine
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__LINUX__)
 #include "dynamic_lib.h"

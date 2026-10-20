@@ -2,7 +2,7 @@
 //
 // Copyright (c) 2022-2026 Gregory Machefer (Fewnity)
 //
-// This file is part of Xenity Engine
+// This file is part of Bones Engine
 
 #include "about_menu.h"
 
@@ -17,17 +17,17 @@ void AboutMenu::Draw()
 {
 	ImGui::SetNextWindowSize(ImVec2(0, 0), ImGuiCond_FirstUseEver);
 
-	const bool visible = ImGui::Begin("About Xenity Engine", &m_isActive, ImGuiWindowFlags_NoCollapse);
+	const bool visible = ImGui::Begin("About Bones Engine", &m_isActive, ImGuiWindowFlags_NoCollapse);
 	if (visible)
 	{
 		OnStartDrawing();
 
 		ImGui::Text("Version: %s", ENGINE_VERSION);
-		ImGui::Text("Made by Fewnity with love <3");
+		ImGui::Text("Bones Engine, based on Xenity Engine by Fewnity");
 
-		if(ImGui::Button("Credits"))
+		if(ImGui::Button("Source code"))
 		{
-			Editor::OpenLinkInWebBrowser("https://fewnity.github.io/Xenity-Engine/credits.html");
+			Editor::OpenLinkInWebBrowser("https://github.com/afolouyou/bones-engine");
 		}
 
 		CalculateWindowValues();

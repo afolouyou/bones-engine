@@ -1,7 +1,7 @@
 .{
-    .name = .xenity_engine,
-    .version = "1.2.2",
-    .fingerprint = 0xe2855ae5a3e65e3e,
+    .name = .bones_engine,
+    .version = "0.1.0",
+    .fingerprint = 0xb62122d4e139a66,
     .minimum_zig_version = "0.17.0",
     .dependencies = .{},
     .paths = .{

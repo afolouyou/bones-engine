@@ -2,7 +2,7 @@
 //
 // Copyright (c) 2022-2026 Gregory Machefer (Fewnity)
 //
-// This file is part of Xenity Engine
+// This file is part of Bones Engine
 
 #pragma once
 
@@ -30,9 +30,9 @@ public:
 	[[nodiscard]] static Platform GetPlatform();
 
 	/**
-	* @brief Returns the current version of Xenity Engine
+	* @brief Returns the current version of Bones Engine
 	*/
-	[[nodiscard]] static std::string GetXenityVersion();
+	[[nodiscard]] static std::string GetBonesVersion();
 
 	/**
 	* @brief Returns the name of the game

@@ -2,7 +2,7 @@
 //
 // Copyright (c) 2022-2026 Gregory Machefer (Fewnity)
 //
-// This file is part of Xenity Engine
+// This file is part of Bones Engine
 
 #include "dev_kit_control_menu.h"
 
@@ -115,7 +115,7 @@ void DevKitControlMenu::Draw()
 			launchGameThread.detach();
 		}
 		ImGui::SameLine();
-		ImGui::Text("File should be in: dev_hdd0/xenity_engine/XenityBuild.self");
+		ImGui::Text("File should be in: dev_hdd0/bones_engine/BonesBuild.self");
 		if (ImGui::Button("Launch game from pc"))
 		{
 			std::thread launchGameThread = std::thread(&DevKitControlMenu::LaunchGame, this, DevKitRunningMode::FromPC);
@@ -272,7 +272,7 @@ void DevKitControlMenu::LaunchGame(DevKitRunningMode devKitRunningMode)
 	command += " run -t " + m_devKits[m_selectedDevKit].name;
 	if (devKitRunningMode == DevKitRunningMode::FromHDD)
 	{
-		command += " ../dev_hdd0/xenity_engine/XenityBuild.self";
+		command += " ../dev_hdd0/bones_engine/BonesBuild.self";
 	}
 	else if (devKitRunningMode == DevKitRunningMode::FromPC)
 	{
@@ -286,7 +286,7 @@ void DevKitControlMenu::LaunchGame(DevKitRunningMode devKitRunningMode)
 		{
 			command += location;
 		}
-		//command += " C:\\Users\\elect\\Desktop\\Builds\\Benchmark\\PS3\\XenityBuild.fake.self"; // Real dev kit cannot run normal self files so use fake.self
+		//command += " C:\\Users\\elect\\Desktop\\Builds\\Benchmark\\PS3\\BonesBuild.fake.self"; // Real dev kit cannot run normal self files so use fake.self
 	}
 	command += "\"";
 

@@ -2,7 +2,7 @@
 //
 // Copyright (c) 2022-2026 Gregory Machefer (Fewnity)
 //
-// This file is part of Xenity Engine
+// This file is part of Bones Engine
 
 // Header to include and use API macro when you want to use a class from the DLL
 #pragma warning( disable : 4251 )

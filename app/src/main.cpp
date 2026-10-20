@@ -2,7 +2,7 @@
 //
 // Copyright (c) 2022-2026 Gregory Machefer (Fewnity)
 //
-// This file is part of Xenity Engine
+// This file is part of Bones Engine
 
 #include <engine/engine.h>
 #include <engine/debug/debug.h>
@@ -14,7 +14,7 @@
 // SYS_PROCESS_PARAM(1001, 0x100000); // Crash on real PS3, why?
 #endif
 
-//------------------------------- Link to the API documentation: https://fewnity.github.io/Xenity-Engine/script_api_reference/scripting_api_reference.html
+//------------------------------- Link to the API documentation: https://github.com/afolouyou/bones-engine
 
 #undef main
 

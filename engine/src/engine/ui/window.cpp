@@ -2,7 +2,7 @@
 //
 // Copyright (c) 2022-2026 Gregory Machefer (Fewnity)
 //
-// This file is part of Xenity Engine
+// This file is part of Bones Engine
 
 #include "window.h"
 
@@ -30,7 +30,7 @@
 int Window::s_width = 0;
 int Window::s_height = 0;
 float Window::s_aspect = 0;
-const char* ENGINE_NAME = "Xenity Engine"; //TODO : To move
+const char* ENGINE_NAME = "Bones Engine"; //TODO : To move
 #if defined(_WIN32) || defined(_WIN64) || defined(__LINUX__)
 SDL_Window* Window::s_window = nullptr;
 #endif
