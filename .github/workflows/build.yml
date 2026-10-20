@@ -16,7 +16,7 @@ jobs:
     container: archlinux:latest
     steps:
       - name: Install toolchain and dependencies
-        run: pacman -Syu --noconfirm git nodejs zig sdl3 freetype2 assimp curl openssl xorg-server-xvfb mesa
+        run: pacman -Syu --noconfirm git nodejs zig sdl3 freetype2 assimp curl openssl xorg-server-xvfb xorg-xauth mesa
 
       - uses: actions/checkout@v4
 
@@ -29,20 +29,13 @@ jobs:
           SDL_VIDEODRIVER: x11
         run: |
           cd zig-out/bin
-          timeout 20 xvfb-run -a ./bones_editor > editor.log 2>&1 || true
+          timeout 25 xvfb-run -a -s "-screen 0 1280x720x24" ./bones_editor > editor.log 2>&1 || true
           sed -i 's/\x1b\[[0-9;]*m//g' editor.log
-          if grep -q 'Test:$' editor.log; then
-            echo "Unit test failure:"
-            cat editor.log
-            exit 1
-          fi
-          grep -q 'Unit Tests finished!' editor.log
-          grep -q 'Engine fully initiated' editor.log
-          if grep -q 'Cannot link the shader' editor.log; then
-            echo "Shader compilation failure:"
-            cat editor.log
-            exit 1
-          fi
+          tail -40 editor.log
+          grep -q 'Unit Tests finished!' editor.log || { echo "Engine did not finish the unit tests"; exit 1; }
+          grep -q 'Engine fully initiated' editor.log || { echo "Engine failed to init"; exit 1; }
+          if grep -q 'Test:$' editor.log; then echo "Unit test failure"; exit 1; fi
+          if grep -q 'Cannot link the shader' editor.log; then echo "Shader compilation failure"; exit 1; fi
 
   windows:
     name: Windows (Zig/MSVC)

@@ -93,14 +93,19 @@ pub fn build(b: *std.Build) void {
         .root_module = mod,
     });
 
-    exe.root_module.addLibraryPath(b.path(EnginePaths.third_party ++ "/libs"));
     if (is_windows) {
-        exe.root_module.addLibraryPath(b.path(EnginePaths.third_party ++ "/libs/x64"));
-        exe.root_module.linkSystemLibrary("SDL3", .{});
-        exe.root_module.linkSystemLibrary("freetype", .{});
-        exe.root_module.linkSystemLibrary("assimp-vc143-mt", .{});
-        exe.root_module.linkSystemLibrary("libcurl_a", .{});
-        exe.root_module.linkSystemLibrary("zlibstatic", .{});
+        // Link the vendored MSVC libraries by path. linkSystemLibrary() would also
+        // search the host system and can pick up an incompatible ELF archive.
+        const msvc_libs = [_][]const u8{
+            "SDL3.lib",
+            "freetype.lib",
+            "assimp-vc143-mt.lib",
+            "libcurl_a.lib",
+            "zlibstatic.lib",
+        };
+        for (msvc_libs) |lib| {
+            exe.root_module.addObjectFile(b.path(b.fmt("{s}/libs/x64/{s}", .{ EnginePaths.third_party, lib })));
+        }
         exe.root_module.linkSystemLibrary("opengl32", .{});
         exe.root_module.linkSystemLibrary("ws2_32", .{});
         exe.root_module.linkSystemLibrary("winmm", .{});
