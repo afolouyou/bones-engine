@@ -43,6 +43,15 @@ jobs:
           if grep -q 'Test:$' editor.log; then echo "Unit test failure"; exit 1; fi
           if grep -q 'Cannot link the shader' editor.log; then echo "Shader compilation failure"; exit 1; fi
 
+      - name: Build the runtime without the editor
+        run: zig build -Deditor=false -Dgame-source=tests/runtime_game
+
+      - name: Check the runtime entry point
+        run: |
+          cd zig-out/bin
+          ./bones_runtime --version | tee runtime-version.txt
+          grep -q 'Bones Engine 0.01' runtime-version.txt
+
   windows:
     name: Windows (compile check)
     runs-on: windows-latest
@@ -56,5 +65,8 @@ jobs:
       # Linking is still blocked by the MSVC-built curl/zlib archives, whose
       # /DEFAULTLIB directives Zig resolves as GNU-style lib*.a names.
       # Rebuilding those dependencies for Zig is tracked for a later release.
-      - name: Compile
+      - name: Compile the editor
         run: zig build check
+
+      - name: Compile the runtime without the editor
+        run: zig build check -Deditor=false -Dgame-source=tests/runtime_game

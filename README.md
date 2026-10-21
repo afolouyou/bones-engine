@@ -42,22 +42,32 @@ sudo pacman -S sdl3 freetype2 assimp curl openssl
 Then:
 
 ```sh
-zig build                     # editor + runtime, installed to zig-out/bin
+zig build                     # editor, installed to zig-out/bin
 zig build run                 # build and run the editor
 zig build -Doptimize=ReleaseFast
 ```
 
+The editor and the runtime are separate builds. A runtime build needs the game source tree:
+
+```sh
+zig build -Deditor=false -Dgame-source=tests/runtime_game
+./zig-out/bin/bones_runtime --version
+```
+
 `zig build` also copies the runtime assets (`engine_assets`, `public_engine_assets`, `icons`, `vscodeSample`, `plugins`) next to the executable, along with the editor font and `libassimp`.
+
+Hosts can drive the engine through the stable C ABI in `engine/src/bones/api.h` (`bones_init`, `bones_run`, `bones_stop`, `bones_quit`). The header is installed to `zig-out/include/bones/api.h` and stays valid C.
 
 PS3 builds still use the PSL1GHT Makefile inside Docker (`app/packaging`).
 
 ## Repository layout
 
-- `engine/src` — engine runtime (`engine/`), editor (`editor/`), platform code (`windows/`, `ps3/`), SDK headers and unit tests.
-- `app/src` — executable entry point.
+- `engine/src` — engine runtime (`engine/`), editor (`editor/`), platform code (`windows/`, `ps3/`), the C ABI (`bones/`), SDK headers and unit tests.
+- `app/src` — executable entry point (uses only the C ABI).
 - `app/assets` — runtime assets copied next to the executable.
 - `app/res` — Windows resources (icon, `.rc`).
 - `app/packaging` — Dockerfile, PS3 Makefile and shader compilation script.
+- `tests/runtime_game` — minimal game used to build and smoke-test the runtime without the editor.
 - `third_party` — vendored libraries (headers in `third_party/<lib>`, prebuilt binaries in `third_party/libs`).
 - `build.zig` — build definition.
 

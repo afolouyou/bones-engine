@@ -37,6 +37,8 @@ fn createEngineModule(
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
     is_windows: bool,
+    editor: bool,
+    game_include: ?[]const u8,
     cpp_sources: []const []const u8,
     c_sources: []const []const u8,
 ) *std.Build.Module {
@@ -50,9 +52,10 @@ fn createEngineModule(
     mod.addIncludePath(b.path(EnginePaths.engine_src));
     mod.addIncludePath(b.path(EnginePaths.third_party));
     mod.addIncludePath(b.path(EnginePaths.third_party ++ "/bullet"));
+    if (game_include) |include| mod.addIncludePath(b.path(include));
     mod.addCMacro("NOMINMAX", "1");
     mod.addCMacro("_CRT_SECURE_NO_WARNINGS", "1");
-    mod.addCMacro("EDITOR", "1");
+    if (editor) mod.addCMacro("EDITOR", "1");
     if (optimize == .debug) mod.addCMacro("DEBUG", "1");
     if (is_windows) {
         mod.addCMacro("_WIN32", "1");
@@ -78,6 +81,12 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const editor = b.option(bool, "editor", "Build the editor UI") orelse true;
+    const game_source = b.option([]const u8, "game-source", "Game project root containing game_code/source (required when -Deditor=false)") orelse null;
+    if (!editor and game_source == null) {
+        @panic("-Deditor=false requires -Dgame-source=<path>");
+    }
+
     const is_windows = target.result.os.tag == .windows;
 
     var cpp_sources: std.ArrayList([]const u8) = .empty;
@@ -86,23 +95,31 @@ pub fn build(b: *std.Build) void {
     var dirs: std.ArrayList([]const u8) = .empty;
     dirs.append(b.allocator, EnginePaths.engine_src ++ "/bones") catch @panic("OOM");
     dirs.append(b.allocator, EnginePaths.engine_src ++ "/engine") catch @panic("OOM");
-    dirs.append(b.allocator, EnginePaths.engine_src ++ "/editor") catch @panic("OOM");
     dirs.append(b.allocator, EnginePaths.engine_src ++ "/windows") catch @panic("OOM");
-    dirs.append(b.allocator, EnginePaths.third_party ++ "/imgui") catch @panic("OOM");
-    dirs.append(b.allocator, EnginePaths.third_party ++ "/implot") catch @panic("OOM");
     dirs.append(b.allocator, EnginePaths.third_party ++ "/bullet") catch @panic("OOM");
-    if (optimize == .debug) {
-        dirs.append(b.allocator, EnginePaths.engine_src ++ "/unit_tests") catch @panic("OOM");
+    if (editor) {
+        dirs.append(b.allocator, EnginePaths.engine_src ++ "/editor") catch @panic("OOM");
+        dirs.append(b.allocator, EnginePaths.third_party ++ "/imgui") catch @panic("OOM");
+        dirs.append(b.allocator, EnginePaths.third_party ++ "/implot") catch @panic("OOM");
+        if (optimize == .debug) {
+            dirs.append(b.allocator, EnginePaths.engine_src ++ "/unit_tests") catch @panic("OOM");
+        }
     }
     for (dirs.items) |dir| {
         collectSources(b, b.allocator, &cpp_sources, &c_sources, dir) catch @panic("failed to list sources");
     }
+    if (!editor) {
+        const game_dir = b.fmt("{s}/game_code/source", .{game_source.?});
+        collectSources(b, b.allocator, &cpp_sources, &c_sources, game_dir) catch @panic("failed to list game sources");
+    }
     c_sources.append(b.allocator, b.dupe(EnginePaths.engine_src ++ "/gl.c")) catch @panic("OOM");
     cpp_sources.append(b.allocator, b.dupe(EnginePaths.app_src ++ "/main.cpp")) catch @panic("OOM");
 
+    const game_include: ?[]const u8 = if (editor) null else game_source;
+
     // Compile-only target: validates that every source builds for a platform
     // without requiring that platform's prebuilt libraries to be linkable.
-    const check_mod = createEngineModule(b, target, optimize, is_windows, cpp_sources.items, c_sources.items);
+    const check_mod = createEngineModule(b, target, optimize, is_windows, editor, game_include, cpp_sources.items, c_sources.items);
     const check = b.addLibrary(.{
         .name = "bones_engine_check",
         .root_module = check_mod,
@@ -111,9 +128,9 @@ pub fn build(b: *std.Build) void {
     const check_step = b.step("check", "Compile the engine without linking");
     check_step.dependOn(&check.step);
 
-    const mod = createEngineModule(b, target, optimize, is_windows, cpp_sources.items, c_sources.items);
+    const mod = createEngineModule(b, target, optimize, is_windows, editor, game_include, cpp_sources.items, c_sources.items);
     const exe = b.addExecutable(.{
-        .name = "bones_editor",
+        .name = if (editor) "bones_editor" else "bones_runtime",
         .root_module = mod,
     });
 

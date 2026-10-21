@@ -60,7 +60,9 @@
 // Debug, Tests & Profiling
 #include <engine/debug/debug.h>
 #include <engine/debug/performance.h>
+#if defined(DEBUG) && defined(EDITOR)
 #include <unit_tests/unit_test_manager.h>
+#endif
 #include <engine/tools/profiler_benchmark.h>
 #include <engine/tools/scope_benchmark.h>
 #include <engine/debug/stack_debug_object.h>
@@ -223,7 +225,7 @@ int Engine::Init(int argc, char* argv[])
 	s_isInitialized = true;
 	Debug::Print("-------- Engine fully initiated --------\n", true);
 
-#if defined(DEBUG)
+#if defined(DEBUG) && defined(EDITOR)
 	UnitTestManager::StartAllTests();
 #endif
 
