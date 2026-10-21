@@ -38,6 +38,9 @@ public:
 	RendererOpengl(const RendererOpengl& other) = delete;
 	RendererOpengl& operator=(const RendererOpengl&) = delete;
 
+	[[nodiscard]] GraphicsApi GetGraphicsApi() const override;
+	[[nodiscard]] const RendererCapabilities& GetCapabilities() const override;
+
 	[[nodiscard]] int Init() override;
 	void Setup() override;
 	void Stop() override;
@@ -100,6 +103,7 @@ private:
 	unsigned int lastUsedColor2 = 0xFFFFFFFF;
 	unsigned int lastUsedVAO = 0;
 	uint64_t lastShaderIdUsedColor = 0;
+	RendererCapabilities m_capabilities;
 	// int GetDrawModeEnum(DrawMode drawMode);
 };
 #endif

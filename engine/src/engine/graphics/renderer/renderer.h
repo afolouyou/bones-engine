@@ -12,6 +12,7 @@
 
 #include <glm/fwd.hpp>
 
+#include <string>
 #include <vector>
 
 #include <engine/api.h>
@@ -28,6 +29,36 @@ class Camera;
 class Texture;
 class Material;
 struct LightsIndices;
+
+/**
+* @brief Graphics API currently driving the renderer.
+*/
+enum class GraphicsApi
+{
+	OpenGL,
+	RSX,
+	Vulkan,
+};
+
+/**
+* @brief Backend facts that game code and the editor may rely on.
+*
+* The values are filled by the backend after its device is ready. They are
+* intentionally descriptive: code that needs a feature must query it here
+* instead of assuming the OpenGL feature set.
+*/
+struct RendererCapabilities
+{
+	GraphicsApi api = GraphicsApi::OpenGL;
+	std::string apiName;
+	std::string deviceName;
+	std::string apiVersion;
+	int maxTextureSize = 0;
+	bool supportsWireframe = true;
+	bool supportsInstancing = false;
+	bool supportsCompute = false;
+	bool supportsGeometryShaders = false;
+};
 
 struct RenderingSettings
 {
@@ -72,6 +103,16 @@ class API Renderer
 public:
 	virtual ~Renderer() = default;
 	Renderer& operator=(const Renderer&) = delete;
+
+	/**
+	* @brief Graphics API implemented by this backend.
+	*/
+	[[nodiscard]] virtual GraphicsApi GetGraphicsApi() const = 0;
+
+	/**
+	* @brief Facts about the active device. Valid after Init/Setup.
+	*/
+	[[nodiscard]] virtual const RendererCapabilities& GetCapabilities() const = 0;
 
 	[[nodiscard]] virtual int Init() = 0;
 	virtual void Setup() = 0;

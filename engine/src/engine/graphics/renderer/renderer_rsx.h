@@ -30,6 +30,9 @@ public:
 	RendererRSX(const RendererRSX& other) = delete;
 	RendererRSX& operator=(const RendererRSX&) = delete;
 
+	[[nodiscard]] GraphicsApi GetGraphicsApi() const override;
+	[[nodiscard]] const RendererCapabilities& GetCapabilities() const override;
+
 	[[nodiscard]] int Init() override;
 	void Setup() override;
 	void Stop() override;
@@ -96,6 +99,7 @@ private:
 	void drawFrame();
 	Color clearColor;
 	std::shared_ptr<TexturePS3> m_lighintDataTexture;
+	RendererCapabilities m_capabilities;
 	// int GetCullFaceEnum(CullFace face);
 	// float GetAnisotropicValueEnum(AnisotropicLevel level);
 

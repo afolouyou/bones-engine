@@ -7,6 +7,7 @@
 #if !defined(__PS3__)
 #include "renderer_opengl.h"
 
+#include <cstdio>
 #include <memory>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/quaternion.hpp>
@@ -38,6 +39,16 @@ RendererOpengl::RendererOpengl()
 {
 }
 
+GraphicsApi RendererOpengl::GetGraphicsApi() const
+{
+	return GraphicsApi::OpenGL;
+}
+
+const RendererCapabilities& RendererOpengl::GetCapabilities() const
+{
+	return m_capabilities;
+}
+
 int RendererOpengl::Init()
 {
 	lastSettings.useTexture = false;
@@ -61,6 +72,30 @@ int RendererOpengl::Init()
 void RendererOpengl::Setup()
 {
 	XASSERT(Engine::IsCalledFromMainThread(), "Function called from another thread");
+
+	// The GL context is current here, so query the device once.
+	m_capabilities.api = GraphicsApi::OpenGL;
+	m_capabilities.apiName = "OpenGL";
+	const char* glVersion = reinterpret_cast<const char*>(glGetString(GL_VERSION));
+	const char* glRenderer = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
+	if (glVersion)
+		m_capabilities.apiVersion = glVersion;
+	if (glRenderer)
+		m_capabilities.deviceName = glRenderer;
+	GLint maxTextureSize = 0;
+	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTextureSize);
+	m_capabilities.maxTextureSize = static_cast<int>(maxTextureSize);
+
+	int major = 0;
+	int minor = 0;
+	if (glVersion)
+		std::sscanf(glVersion, "%d.%d", &major, &minor);
+	m_capabilities.supportsInstancing = major > 3 || (major == 3 && minor >= 3);
+	m_capabilities.supportsGeometryShaders = major > 3 || (major == 3 && minor >= 2);
+	m_capabilities.supportsCompute = major > 4 || (major == 4 && minor >= 3);
+
+	Debug::Print("[Renderer] " + m_capabilities.apiName + " | " + m_capabilities.deviceName + " | " + m_capabilities.apiVersion
+		+ " | max texture: " + std::to_string(m_capabilities.maxTextureSize), true);
 
 	// TODO: this part needs to be improved
 	glEnable(GL_NORMALIZE);

@@ -338,6 +338,25 @@ void RendererRSX::flip()
 
 RendererRSX::RendererRSX()
 {
+	m_capabilities.api = GraphicsApi::RSX;
+	m_capabilities.apiName = "RSX";
+	m_capabilities.deviceName = "PlayStation 3";
+	m_capabilities.apiVersion = "RSX";
+	m_capabilities.maxTextureSize = 4096;
+	m_capabilities.supportsWireframe = false;
+	m_capabilities.supportsInstancing = false;
+	m_capabilities.supportsCompute = false;
+	m_capabilities.supportsGeometryShaders = false;
+}
+
+GraphicsApi RendererRSX::GetGraphicsApi() const
+{
+	return GraphicsApi::RSX;
+}
+
+const RendererCapabilities& RendererRSX::GetCapabilities() const
+{
+	return m_capabilities;
 }
 
 int RendererRSX::Init()
