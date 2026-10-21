@@ -16,8 +16,8 @@ It is a continuation of [Xenity Engine](https://github.com/Fewnity/Xenity-Engine
 
 ## Roadmap
 
-- **0.01** — Bones Engine branding, stable Zig build, CI and runtime/editor separation.
-- **0.02** — Renderer API decoupled from OpenGL fixed-function state.
+- **0.01** (in progress) — Bones Engine branding, stable Zig build, C ABI (`bones/api.h`), runtime/editor split and CI. Remaining: automated scene smoke test and Windows linking.
+- **0.02** (in progress) — backend capabilities and the explicit `Device`/`Buffer`/`Texture`/`Shader`/`Pipeline`/`CommandList` contract.
 - **0.03** — Vulkan 1.4 backend for Linux and Windows; OpenGL remains a supported fallback.
 - **0.04** — Jolt Physics replaces Bullet, with a new physics format.
 - **0.05** — Stable plugin ABI (Nim scripting support is exploratory).
