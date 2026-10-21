@@ -84,6 +84,7 @@ pub fn build(b: *std.Build) void {
     var c_sources: std.ArrayList([]const u8) = .empty;
 
     var dirs: std.ArrayList([]const u8) = .empty;
+    dirs.append(b.allocator, EnginePaths.engine_src ++ "/bones") catch @panic("OOM");
     dirs.append(b.allocator, EnginePaths.engine_src ++ "/engine") catch @panic("OOM");
     dirs.append(b.allocator, EnginePaths.engine_src ++ "/editor") catch @panic("OOM");
     dirs.append(b.allocator, EnginePaths.engine_src ++ "/windows") catch @panic("OOM");
@@ -158,6 +159,9 @@ pub fn build(b: *std.Build) void {
     }
 
     b.installArtifact(exe);
+
+    // Public C ABI header, for hosts and future plugins.
+    b.installFile(b.fmt("{s}/bones/api.h", .{EnginePaths.engine_src}), "include/bones/api.h");
 
     // Assets are loaded relative to the executable.
     const assets = [_][]const u8{ "engine_assets", "public_engine_assets", "icons", "vscodeSample", "plugins" };

@@ -23,6 +23,12 @@ jobs:
       - name: Build
         run: zig build
 
+      - name: Check the C ABI version entry point
+        run: |
+          cd zig-out/bin
+          ./bones_editor --version | tee version.txt
+          grep -q 'Bones Engine 0.01' version.txt
+
       - name: Run unit tests and editor smoke test
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"

@@ -4,8 +4,10 @@
 //
 // This file is part of Bones Engine
 
-#include <engine/engine.h>
-#include <engine/debug/debug.h>
+#include <bones/api.h>
+
+#include <cstdio>
+#include <cstring>
 
 #if defined(__PS3__)
 #include <sys/thread.h>
@@ -16,22 +18,26 @@
 
 //------------------------------- Link to the API documentation: https://github.com/afolouyou/bones-engine
 
-#undef main
-
 int main(int argc, char* argv[])
 {
-	// Init engine
-	const int engineInitResult = Engine::Init(argc, argv);
+	if (argc > 1 && (std::strcmp(argv[1], "--version") == 0 || std::strcmp(argv[1], "-v") == 0))
+	{
+		std::printf("%s %s\n", bones_engine_name(), bones_version());
+		return 0;
+	}
+
+	// Init engine through the stable C ABI.
+	const int engineInitResult = bones_init(argc, argv);
 	if (engineInitResult != 0)
 	{
-		Debug::PrintError("-------- Engine failed to init --------", true);
+		bones_log(BONES_LOG_ERROR, "-------- Engine failed to init --------");
 		return -1;
 	}
 
 	// Engine and game loop
-	Engine::Loop();
-	Debug::Print("-------- Game loop ended --------", true);
-	Engine::Stop();
+	bones_run();
+	bones_log(BONES_LOG_INFO, "-------- Game loop ended --------");
+	bones_stop();
 
 	// Weird fix for PS3 to avoid crash on exit
 #if defined(__PS3__)
