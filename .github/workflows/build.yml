@@ -62,7 +62,7 @@ jobs:
           grep -q 'Bones Engine 0.01' runtime-version.txt
 
   windows:
-    name: Windows (compile check)
+    name: Windows (Zig/MSVC)
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -71,11 +71,17 @@ jobs:
         with:
           version: 0.17.0
 
-      # Linking is still blocked by the MSVC-built curl/zlib archives, whose
-      # /DEFAULTLIB directives Zig resolves as GNU-style lib*.a names.
-      # Rebuilding those dependencies for Zig is tracked for a later release.
-      - name: Compile the editor
-        run: zig build check
+      # The vendored libraries are MSVC archives. Target the MSVC ABI so Zig
+      # resolves their /DEFAULTLIB directives against the MSVC and Windows SDK
+      # import libraries instead of looking for GNU-style lib*.a files.
+      - name: Build the editor
+        run: zig build -Dtarget=x86_64-windows-msvc
 
-      - name: Compile the runtime without the editor
-        run: zig build check -Deditor=false -Dgame-source=tests/runtime_game
+      - name: Check the editor entry point
+        run: |
+          cd zig-out/bin
+          ./bones_editor.exe --version | Tee-Object version.txt
+          if (-not (Select-String -Path version.txt -Pattern 'Bones Engine 0.01')) { exit 1 }
+
+      - name: Build the runtime without the editor
+        run: zig build -Dtarget=x86_64-windows-msvc -Deditor=false -Dgame-source=tests/runtime_game
