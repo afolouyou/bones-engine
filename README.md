@@ -11,12 +11,12 @@ It is a continuation of [Xenity Engine](https://github.com/Fewnity/Xenity-Engine
 | Status | Platform |
 |-|-|
 | ✔️ | Linux (primary development build) |
-| 🚧 | Windows |
+| ✔️ | Windows |
 | ✔️ | PlayStation 3 (RSX renderer, Docker/PSL1GHT) |
 
 ## Roadmap
 
-- **0.01** (in progress) — Bones Engine branding, stable Zig build, C ABI (`bones/api.h`), runtime/editor split, CI and the automated scene smoke test. Remaining: Windows linking.
+- **0.01** — Bones Engine branding, stable Zig build, C ABI (`bones/api.h`), runtime/editor split, Linux and Windows CI, and the automated scene smoke test.
 - **0.02** (in progress) — backend capabilities and the explicit `Device`/`Buffer`/`Texture`/`Shader`/`Pipeline`/`CommandList` contract, with tested OpenGL and Vulkan implementations. Remaining: move the engine renderer onto the contract.
 - **0.03** (started) — Vulkan backend foundation: headless device, buffers, shaders, pipelines, descriptor bindings, offscreen rendering and readback. Remaining: swapchain presentation and the 1.4 feature set.
 - **0.04** — Jolt Physics replaces Bullet, with a new physics format.
@@ -48,6 +48,14 @@ zig build -Doptimize=ReleaseFast
 zig build -Dvulkan=false      # build without the Vulkan backend
 ```
 
+On Windows, target Zig's MinGW ABI:
+
+```sh
+zig build -Dtarget=x86_64-windows-gnu
+```
+
+The build links the MSVC-built libraries in `third_party/libs/x64` and uses assimp's C API, so the Visual Studio toolchain is not required.
+
 The editor and the runtime are separate builds. A runtime build needs the game source tree:
 
 ```sh
@@ -62,7 +70,7 @@ cd zig-out/bin
 SDL_VIDEODRIVER=offscreen ./bones_editor --scene-smoke
 ```
 
-The temporary project is removed when the editor shuts down. This is the same check CI runs after the unit tests.
+The temporary project is removed when the editor shuts down. This is the same check CI runs after the unit tests. CI builds and links the editor and runtime on Linux and Windows; the headless scene check runs on Linux, and the Windows job runs both version entry points.
 
 `zig build` also copies the runtime assets (`engine_assets`, `public_engine_assets`, `icons`, `vscodeSample`, `plugins`) next to the executable, along with the editor font and `libassimp`.
 
