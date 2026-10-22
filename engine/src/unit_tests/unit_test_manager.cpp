@@ -131,8 +131,15 @@ void UnitTestManager::StartAllTests()
 
 	//------------------------------------------------------------------ Renderer contract
 	{
+#if !defined(__PS3__)
 		RendererContractTest rendererContractTest = RendererContractTest("Renderer Contract");
 		TryTest(rendererContractTest);
+#endif
+
+#if defined(BONES_VULKAN)
+		RendererContractVulkanTest rendererContractVulkanTest = RendererContractVulkanTest("Renderer Contract (Vulkan)");
+		TryTest(rendererContractVulkanTest);
+#endif
 	}
 
 #if defined(EDITOR)

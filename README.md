@@ -17,8 +17,8 @@ It is a continuation of [Xenity Engine](https://github.com/Fewnity/Xenity-Engine
 ## Roadmap
 
 - **0.01** (in progress) — Bones Engine branding, stable Zig build, C ABI (`bones/api.h`), runtime/editor split and CI. Remaining: automated scene smoke test and Windows linking.
-- **0.02** (in progress) — backend capabilities and the explicit `Device`/`Buffer`/`Texture`/`Shader`/`Pipeline`/`CommandList` contract, with a tested OpenGL reference implementation. Remaining: move the engine renderer onto the contract.
-- **0.03** — Vulkan 1.4 backend for Linux and Windows; OpenGL remains a supported fallback.
+- **0.02** (in progress) — backend capabilities and the explicit `Device`/`Buffer`/`Texture`/`Shader`/`Pipeline`/`CommandList` contract, with tested OpenGL and Vulkan implementations. Remaining: move the engine renderer onto the contract.
+- **0.03** (started) — Vulkan backend foundation: headless device, buffers, shaders, pipelines, offscreen rendering and readback. Remaining: descriptor bindings, swapchain presentation and the 1.4 feature set.
 - **0.04** — Jolt Physics replaces Bullet, with a new physics format.
 - **0.05** — Stable plugin ABI (Nim scripting support is exploratory).
 - **0.06** — FLTK-based editor UI.
@@ -36,7 +36,7 @@ The build uses [Zig](https://ziglang.org/) 0.17 or newer.
 On Linux, install the dependencies first (Arch):
 
 ```sh
-sudo pacman -S sdl3 freetype2 assimp curl openssl
+sudo pacman -S sdl3 freetype2 assimp curl openssl vulkan-headers
 ```
 
 Then:
@@ -45,6 +45,7 @@ Then:
 zig build                     # editor, installed to zig-out/bin
 zig build run                 # build and run the editor
 zig build -Doptimize=ReleaseFast
+zig build -Dvulkan=false      # build without the Vulkan backend
 ```
 
 The editor and the runtime are separate builds. A runtime build needs the game source tree:
@@ -58,7 +59,7 @@ zig build -Deditor=false -Dgame-source=tests/runtime_game
 
 Hosts can drive the engine through the stable C ABI in `engine/src/bones/api.h` (`bones_init`, `bones_run`, `bones_stop`, `bones_quit`). The header is installed to `zig-out/include/bones/api.h` and stays valid C.
 
-The internal renderer contract is `engine/src/engine/graphics/rhi/rhi.h` (`Device`, `Buffer`, `Texture`, `Shader`, `Pipeline`, `CommandList`). The OpenGL implementation in `rhi_opengl.cpp` is the reference backend; the `Renderer Contract` unit test draws a triangle into an offscreen target and reads the pixels back.
+The internal renderer contract is `engine/src/engine/graphics/rhi/rhi.h` (`Device`, `Buffer`, `Texture`, `Shader`, `Pipeline`, `CommandList`). The OpenGL implementation in `rhi_opengl.cpp` is the reference backend; the `Renderer Contract` unit test draws a triangle into an offscreen target and reads the pixels back. The Vulkan implementation in `rhi_vulkan.cpp` renders the same triangle headlessly through dynamic rendering; it is enabled by default on Linux (`-Dvulkan=false` disables it) and covered by `Renderer Contract (Vulkan)`. Vulkan descriptor bindings and window presentation are not implemented yet.
 
 PS3 builds still use the PSL1GHT Makefile inside Docker (`app/packaging`).
 

@@ -218,7 +218,13 @@ MAKE_TEST(VertexDescriptorGetVertexElementSize);
 
 #pragma region Renderer
 
+#if !defined(__PS3__)
 MAKE_TEST(RendererContract);
+#endif
+
+#if defined(BONES_VULKAN)
+MAKE_TEST(RendererContractVulkan);
+#endif
 
 #pragma endregion
 

@@ -40,6 +40,7 @@ fn createEngineModule(
     optimize: std.builtin.OptimizeMode,
     is_windows: bool,
     editor: bool,
+    vulkan: bool,
     game_include: ?[]const u8,
     cpp_sources: []const []const u8,
     c_sources: []const []const u8,
@@ -58,6 +59,7 @@ fn createEngineModule(
     mod.addCMacro("NOMINMAX", "1");
     mod.addCMacro("_CRT_SECURE_NO_WARNINGS", "1");
     if (editor) mod.addCMacro("EDITOR", "1");
+    if (vulkan) mod.addCMacro("BONES_VULKAN", "1");
     if (optimize == .debug) mod.addCMacro("DEBUG", "1");
     if (is_windows) {
         mod.addCMacro("_WIN32", "1");
@@ -90,6 +92,7 @@ pub fn build(b: *std.Build) void {
     }
 
     const is_windows = target.result.os.tag == .windows;
+    const vulkan = b.option(bool, "vulkan", "Build the Vulkan RHI backend (requires the Vulkan loader and headers)") orelse (target.result.os.tag == .linux);
 
     var cpp_sources: std.ArrayList([]const u8) = .empty;
     var c_sources: std.ArrayList([]const u8) = .empty;
@@ -121,7 +124,7 @@ pub fn build(b: *std.Build) void {
 
     // Compile-only target: validates that every source builds for a platform
     // without requiring that platform's prebuilt libraries to be linkable.
-    const check_mod = createEngineModule(b, target, optimize, is_windows, editor, game_include, cpp_sources.items, c_sources.items);
+    const check_mod = createEngineModule(b, target, optimize, is_windows, editor, vulkan, game_include, cpp_sources.items, c_sources.items);
     const check = b.addLibrary(.{
         .name = "bones_engine_check",
         .root_module = check_mod,
@@ -130,7 +133,7 @@ pub fn build(b: *std.Build) void {
     const check_step = b.step("check", "Compile the engine without linking");
     check_step.dependOn(&check.step);
 
-    const mod = createEngineModule(b, target, optimize, is_windows, editor, game_include, cpp_sources.items, c_sources.items);
+    const mod = createEngineModule(b, target, optimize, is_windows, editor, vulkan, game_include, cpp_sources.items, c_sources.items);
     const exe = b.addExecutable(.{
         .name = if (editor) "bones_editor" else "bones_runtime",
         .root_module = mod,
@@ -163,6 +166,7 @@ pub fn build(b: *std.Build) void {
         exe.root_module.linkSystemLibrary("comdlg32", .{});
         exe.root_module.linkSystemLibrary("dbghelp", .{});
         exe.root_module.linkSystemLibrary("psapi", .{});
+        if (vulkan) exe.root_module.linkSystemLibrary("vulkan-1", .{});
     } else {
         exe.root_module.addLibraryPath(b.path(EnginePaths.third_party ++ "/libs"));
         exe.root_module.linkSystemLibrary("SDL3", .{});
@@ -173,6 +177,7 @@ pub fn build(b: *std.Build) void {
         exe.root_module.linkSystemLibrary("assimp", .{});
         exe.root_module.linkSystemLibrary("dl", .{});
         exe.root_module.linkSystemLibrary("pthread", .{});
+        if (vulkan) exe.root_module.linkSystemLibrary("vulkan", .{});
         exe.root_module.addRPathSpecial("$ORIGIN");
         b.installFile("third_party/libs/libassimp.so.5.4.3", "bin/libassimp.so.5");
     }
@@ -192,6 +197,12 @@ pub fn build(b: *std.Build) void {
         });
     }
     b.installFile(b.fmt("{s}/Roboto Regular.ttf", .{EnginePaths.app_res}), "bin/Roboto Regular.ttf");
+
+    // SPIR-V used by the Vulkan renderer contract test.
+    const test_shaders = [_][]const u8{ "triangle.vert.spv", "triangle.frag.spv" };
+    for (test_shaders) |shader| {
+        b.installFile(b.fmt("tests/shaders/{s}", .{shader}), b.fmt("bin/test_shaders/{s}", .{shader}));
+    }
 
     if (is_windows) {
         const dlls = [_][]const u8{ "SDL3.dll", "freetype.dll", "assimp-vc143-mt.dll" };

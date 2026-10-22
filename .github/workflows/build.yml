@@ -16,7 +16,7 @@ jobs:
     container: archlinux:latest
     steps:
       - name: Install toolchain and dependencies
-        run: pacman -Syu --noconfirm git nodejs zig sdl3 freetype2 assimp curl openssl mesa libglvnd
+        run: pacman -Syu --noconfirm git nodejs zig sdl3 freetype2 assimp curl openssl mesa libglvnd vulkan-headers vulkan-icd-loader vulkan-swrast
 
       - uses: actions/checkout@v4
 
@@ -33,6 +33,8 @@ jobs:
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
           SDL_VIDEODRIVER: offscreen
+          BONES_REQUIRE_VULKAN: "1"
+          VK_DRIVER_FILES: /usr/share/vulkan/icd.d/lvp_icd.json
         run: |
           cd zig-out/bin
           timeout 25 stdbuf -oL -eL ./bones_editor > editor.log 2>&1 || true
@@ -40,11 +42,12 @@ jobs:
           tail -40 editor.log
           grep -q 'Unit Tests finished!' editor.log || { echo "Engine did not finish the unit tests"; exit 1; }
           grep -q 'Engine fully initiated' editor.log || { echo "Engine failed to init"; exit 1; }
+          grep -q 'Renderer Contract (Vulkan) Test Passed' editor.log || { echo "Vulkan renderer contract test did not run"; exit 1; }
           if grep -q 'Test:$' editor.log; then echo "Unit test failure"; exit 1; fi
           if grep -q 'Cannot link the shader' editor.log; then echo "Shader compilation failure"; exit 1; fi
 
       - name: Build the runtime without the editor
-        run: zig build -Deditor=false -Dgame-source=tests/runtime_game
+        run: zig build -Deditor=false -Dgame-source=tests/runtime_game -Dvulkan=false
 
       - name: Check the runtime entry point
         run: |
