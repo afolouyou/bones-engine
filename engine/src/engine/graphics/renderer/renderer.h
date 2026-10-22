@@ -30,6 +30,11 @@ class Texture;
 class Material;
 struct LightsIndices;
 
+namespace bones::rhi
+{
+	class Device;
+}
+
 /**
 * @brief Graphics API currently driving the renderer.
 */
@@ -113,6 +118,17 @@ public:
 	* @brief Facts about the active device. Valid after Init/Setup.
 	*/
 	[[nodiscard]] virtual const RendererCapabilities& GetCapabilities() const = 0;
+
+	/**
+	* @brief RHI device used by this backend, or null when the backend has none.
+	*
+	* Transitional accessor: resources are moving to the RHI while the legacy
+	* OpenGL draw path still uses backend-native handles.
+	*/
+	[[nodiscard]] virtual bones::rhi::Device* GetRhiDevice()
+	{
+		return nullptr;
+	}
 
 	[[nodiscard]] virtual int Init() = 0;
 	virtual void Setup() = 0;

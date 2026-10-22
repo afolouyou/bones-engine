@@ -221,6 +221,7 @@ MAKE_TEST(VertexDescriptorGetVertexElementSize);
 #if !defined(__PS3__)
 MAKE_TEST(RendererContract);
 MAKE_TEST(RendererContractResources);
+MAKE_TEST(RendererResources);
 #endif
 
 #if defined(BONES_VULKAN)

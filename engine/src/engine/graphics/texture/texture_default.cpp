@@ -36,15 +36,29 @@
 
 TextureDefault::~TextureDefault()
 {
-	//Debug::Print("TextureDefault::~TextureDefault()" + std::to_string(m_textureId), true);
 	this->UnloadFileReference();
+}
+
+void TextureDefault::ReleaseTexture()
+{
+	if (!m_texture)
+		return;
+
+	m_texture.reset();
+#if defined (DEBUG)
+	Performance::s_textureMemoryTracker->Deallocate(m_width * height * 4);
+#endif
 }
 
 void TextureDefault::Bind() const
 {
 	XASSERT(Engine::IsCalledFromMainThread(), "Function called from another thread");
 
-	glBindTexture(GL_TEXTURE_2D, m_textureId);
+	const unsigned int textureId = GetTextureId();
+	if (textureId == 0)
+		return;
+
+	glBindTexture(GL_TEXTURE_2D, textureId);
 	ApplyTextureFilters();
 }
 
@@ -131,22 +145,44 @@ void TextureDefault::SetData(const unsigned char *texData)
 
 	XASSERT(texData != nullptr, "[TextureDefault::SetTextureLevel] texData is nullptr");
 
-	if (m_textureId == -1)
+	bones::rhi::Device* device = Engine::GetRenderer().GetRhiDevice();
+	if (!device)
 	{
-		glGenTextures(1, &m_textureId);
-#if defined (DEBUG)
-		Performance::s_textureMemoryTracker->Allocate(m_width * height * 4);
-#endif
+		Debug::PrintError("[TextureDefault] Cannot create a texture without an RHI device", true);
+		return;
 	}
+
+	ReleaseTexture();
+
+	bones::rhi::TextureDesc desc;
+	desc.width = static_cast<uint32_t>(GetWidth());
+	desc.height = static_cast<uint32_t>(GetHeight());
+	desc.format = bones::rhi::Format::R8G8B8A8_UNorm;
+	desc.usage = bones::rhi::TextureUsage::Sampled;
+	desc.minFilter = GetFilter() == Filter::Bilinear ? bones::rhi::Filter::Linear : bones::rhi::Filter::Nearest;
+	desc.magFilter = GetFilter() == Filter::Bilinear ? bones::rhi::Filter::Linear : bones::rhi::Filter::Nearest;
+	desc.wrap = GetWrapMode() == WrapMode::Repeat ? bones::rhi::WrapMode::Repeat : bones::rhi::WrapMode::ClampToEdge;
+
+	m_texture = device->CreateTexture(desc, texData);
+	if (!m_texture)
+	{
+		Debug::PrintError("[TextureDefault] Cannot create the RHI texture", true);
+		return;
+	}
+
+#if defined (DEBUG)
+	Performance::s_textureMemoryTracker->Allocate(m_width * height * 4);
+#endif
+
 	Bind();
 
-	//const unsigned int textureType = GL_LUMINANCE_ALPHA;
-	const unsigned int textureType = GL_RGBA; // rgba
-	glTexImage2D(GL_TEXTURE_2D, 0, textureType, GetWidth(), GetHeight(), 0, textureType, GL_UNSIGNED_BYTE, texData);
+	// The RHI contract does not expose mip generation yet. The legacy OpenGL
+	// path still generates them through the native texture handle.
 	if (GetUseMipmap())
 	{
 		glGenerateMipmap(GL_TEXTURE_2D);
 	}
+	ApplyTextureFilters();
 
 	isValid = true;
 	m_fileStatus = FileStatus::FileStatus_Loaded;
@@ -157,14 +193,7 @@ void TextureDefault::Unload()
 	STACK_DEBUG_OBJECT(STACK_HIGH_PRIORITY);
 
 	ClearSpriteSelections();
-	if (m_textureId != -1)
-	{
-		glDeleteTextures(1, &m_textureId);
-		m_textureId = -1;
-#if defined (DEBUG)
-		Performance::s_textureMemoryTracker->Deallocate(m_width * height * 4);
-#endif
-	}
+	ReleaseTexture();
 }
 
 #endif

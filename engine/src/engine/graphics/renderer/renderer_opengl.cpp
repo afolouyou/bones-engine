@@ -7,8 +7,10 @@
 #if !defined(__PS3__)
 #include "renderer_opengl.h"
 
+#include <cstdint>
 #include <cstdio>
 #include <memory>
+#include <vector>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/quaternion.hpp>
 
@@ -20,6 +22,7 @@
 #include <engine/graphics/camera.h>
 #include <engine/graphics/3d_graphics/mesh_data.h>
 #include <engine/graphics/material.h>
+#include <engine/graphics/rhi/rhi_opengl.h>
 
 #include <engine/asset_management/asset_manager.h>
 #include <engine/game_elements/gameobject.h>
@@ -49,6 +52,11 @@ const RendererCapabilities& RendererOpengl::GetCapabilities() const
 	return m_capabilities;
 }
 
+bones::rhi::Device* RendererOpengl::GetRhiDevice()
+{
+	return m_rhiDevice.get();
+}
+
 int RendererOpengl::Init()
 {
 	lastSettings.useTexture = false;
@@ -73,7 +81,15 @@ void RendererOpengl::Setup()
 {
 	XASSERT(Engine::IsCalledFromMainThread(), "Function called from another thread");
 
-	// The GL context is current here, so query the device once.
+	// The GL context is current here, so create the RHI device once. Resources
+	// are being moved onto it while the legacy draw path still uses GL.
+	m_rhiDevice = bones::rhi::CreateOpenGLDevice();
+	if (!m_rhiDevice)
+	{
+		Debug::PrintError("[Renderer] Failed to create the OpenGL RHI device", true);
+	}
+
+	// Query the device once.
 	m_capabilities.api = GraphicsApi::OpenGL;
 	m_capabilities.apiName = "OpenGL";
 	const char* glVersion = reinterpret_cast<const char*>(glGetString(GL_VERSION));
@@ -129,6 +145,7 @@ void RendererOpengl::Setup()
 
 void RendererOpengl::Stop()
 {
+	m_rhiDevice.reset();
 }
 
 void RendererOpengl::NewFrame()
@@ -496,8 +513,8 @@ void RendererOpengl::DrawSubMesh(const MeshData::SubMesh& subMesh, const Materia
 	}
 	else
 	{
-		const int indiceMode = subMesh.usesShortIndices ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT;
-		glDrawElements(primitiveType, subMesh.m_index_count, indiceMode, 0);
+		// UploadMeshData widens 16-bit CPU indices to the RHI's 32-bit format.
+		glDrawElements(primitiveType, subMesh.m_index_count, GL_UNSIGNED_INT, 0);
 	}
 
 #if defined(EDITOR)
@@ -812,15 +829,6 @@ void RendererOpengl::SetFogValues(float start, float end, const Color& color)
 	glFogfv(GL_FOG_COLOR, floatColor);
 }
 
-unsigned int RendererOpengl::CreateBuffer()
-{
-	XASSERT(Engine::IsCalledFromMainThread(), "Function called from another thread");
-
-	unsigned int id = 0;
-	glGenBuffers(1, &id);
-	return id;
-}
-
 unsigned int RendererOpengl::CreateVertexArray()
 {
 	XASSERT(Engine::IsCalledFromMainThread(), "Function called from another thread");
@@ -837,13 +845,6 @@ void RendererOpengl::BindVertexArray(unsigned int bufferId)
 	glBindVertexArray(bufferId);
 }
 
-void RendererOpengl::DeleteBuffer(unsigned int bufferId)
-{
-	XASSERT(Engine::IsCalledFromMainThread(), "Function called from another thread");
-
-	glDeleteBuffers(1, &bufferId);
-}
-
 void RendererOpengl::DeleteVertexArray(unsigned int bufferId)
 {
 	XASSERT(Engine::IsCalledFromMainThread(), "Function called from another thread");
@@ -858,20 +859,24 @@ void RendererOpengl::DeleteSubMeshData(MeshData::SubMesh& subMesh)
 	if (subMesh.VAO != 0)
 	{
 		DeleteVertexArray(subMesh.VAO);
+		subMesh.VAO = 0;
 	}
-	if (subMesh.VBO != 0)
-	{
-		DeleteBuffer(subMesh.VBO);
-	}
-	if (subMesh.EBO != 0)
-	{
-		DeleteBuffer(subMesh.EBO);
-	}
+
+	// The RHI owns the buffers and releases them here. This also makes the
+	// function safe to call twice, from a reload and from the destructor.
+	subMesh.m_vertexBuffer.reset();
+	subMesh.m_indexBuffer.reset();
 }
 
 void RendererOpengl::UploadMeshData(MeshData& meshData)
 {
 	XASSERT(Engine::IsCalledFromMainThread(), "Function called from another thread");
+
+	if (!m_rhiDevice)
+	{
+		Debug::PrintError("[Renderer] Cannot upload mesh data without an RHI device", true);
+		return;
+	}
 
 // Disable warning about (void*) cast
 #pragma warning( push )
@@ -888,18 +893,70 @@ void RendererOpengl::UploadMeshData(MeshData& meshData)
 
 		glBindVertexArray(newSubMesh->VAO);
 
-		if (newSubMesh->VBO == 0)
-			newSubMesh->VBO = CreateBuffer();
+		// Vertex buffer, created through the RHI. The VAO is still set up with
+		// raw GL because the draw path has not moved yet.
+		if (newSubMesh->m_vertexBuffer && newSubMesh->m_vertexBuffer->GetSize() != newSubMesh->m_vertexMemSize)
+			newSubMesh->m_vertexBuffer.reset();
 
-		glBindBuffer(GL_ARRAY_BUFFER, newSubMesh->VBO);
+		if (!newSubMesh->m_vertexBuffer)
+		{
+			bones::rhi::BufferDesc desc;
+			desc.size = newSubMesh->m_vertexMemSize;
+			desc.usage = bones::rhi::BufferUsage::Vertex;
+			newSubMesh->m_vertexBuffer = m_rhiDevice->CreateBuffer(desc, newSubMesh->m_data);
+		}
+		else
+		{
+			m_rhiDevice->UpdateBuffer(*newSubMesh->m_vertexBuffer, newSubMesh->m_data, newSubMesh->m_vertexMemSize);
+		}
 
-		glBufferData(GL_ARRAY_BUFFER, newSubMesh->m_vertexMemSize, newSubMesh->m_data, GL_STATIC_DRAW);
+		XASSERT(newSubMesh->m_vertexBuffer != nullptr, "Vertex buffer not created");
+		if (!newSubMesh->m_vertexBuffer)
+			continue;
 
-		if (newSubMesh->EBO == 0)
-			newSubMesh->EBO = CreateBuffer();
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, newSubMesh->EBO);
-		size_t indexSize = newSubMesh->usesShortIndices ? sizeof(unsigned short) : sizeof(unsigned int);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexSize * newSubMesh->m_index_count, newSubMesh->GetIndices(), GL_STATIC_DRAW);
+		glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(newSubMesh->m_vertexBuffer->GetNativeHandle()));
+
+		// The RHI contract uses 32-bit indices. Meshes may still keep 16-bit
+		// indices on the CPU, so widen them for the GPU buffer.
+		if (newSubMesh->m_index_count > 0)
+		{
+			std::vector<uint32_t> wideIndices;
+			const void* indexData = newSubMesh->GetIndices();
+			if (newSubMesh->usesShortIndices)
+			{
+				const uint16_t* narrowIndices = static_cast<const uint16_t*>(newSubMesh->GetIndices());
+				wideIndices.resize(newSubMesh->m_index_count);
+				for (uint32_t index = 0; index < newSubMesh->m_index_count; index++)
+					wideIndices[index] = narrowIndices[index];
+				indexData = wideIndices.data();
+			}
+
+			const uint64_t indexBufferSize = static_cast<uint64_t>(newSubMesh->m_index_count) * sizeof(uint32_t);
+			if (newSubMesh->m_indexBuffer && newSubMesh->m_indexBuffer->GetSize() != indexBufferSize)
+				newSubMesh->m_indexBuffer.reset();
+
+			if (!newSubMesh->m_indexBuffer)
+			{
+				bones::rhi::BufferDesc desc;
+				desc.size = indexBufferSize;
+				desc.usage = bones::rhi::BufferUsage::Index;
+				newSubMesh->m_indexBuffer = m_rhiDevice->CreateBuffer(desc, indexData);
+			}
+			else
+			{
+				m_rhiDevice->UpdateBuffer(*newSubMesh->m_indexBuffer, indexData, indexBufferSize);
+			}
+
+			XASSERT(newSubMesh->m_indexBuffer != nullptr, "Index buffer not created");
+			if (newSubMesh->m_indexBuffer)
+			{
+				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLuint>(newSubMesh->m_indexBuffer->GetNativeHandle()));
+			}
+		}
+		else
+		{
+			newSubMesh->m_indexBuffer.reset();
+		}
 
 		const VertexDescriptor& vertexDescriptorList = newSubMesh->m_vertexDescriptor;
 		int stride = vertexDescriptorList.GetVertexSize();

@@ -16,6 +16,7 @@
 #include <engine/debug/debug.h>
 #include <engine/file_system/file_reference.h>
 #include <engine/graphics/3d_graphics/sphere.h>
+#include <engine/graphics/rhi/rhi.h>
 #include <engine/graphics/texture/texture.h>
 #include "vertex_descriptor.h"
 
@@ -158,8 +159,9 @@ public:
 
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__LINUX__)
-		unsigned int VBO = 0;
-		unsigned int EBO = 0;
+		/** GPU resources are owned by the submesh and created by the renderer. */
+		std::unique_ptr<bones::rhi::Buffer> m_vertexBuffer;
+		std::unique_ptr<bones::rhi::Buffer> m_indexBuffer;
 		unsigned int VAO = 0;
 #endif
 #if defined(__PS3__)

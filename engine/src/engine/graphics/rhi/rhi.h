@@ -281,6 +281,18 @@ class Buffer
 public:
 	virtual ~Buffer() = default;
 	[[nodiscard]] virtual uint64_t GetSize() const = 0;
+
+	/**
+	 * @brief Backend-native handle, for the legacy renderer during migration.
+	 *
+	 * This is transitional: it lets code that still records raw OpenGL calls
+	 * use a resource created by the RHI. Do not use it from game code. The
+	 * value is a GLuint on OpenGL and a pointer-sized Vulkan handle on Vulkan.
+	 */
+	[[nodiscard]] virtual uintptr_t GetNativeHandle() const
+	{
+		return 0;
+	}
 };
 
 class Texture
@@ -288,6 +300,16 @@ class Texture
 public:
 	virtual ~Texture() = default;
 	[[nodiscard]] virtual const TextureDesc& GetDesc() const = 0;
+
+	/**
+	 * @brief Backend-native handle, for the legacy renderer during migration.
+	 *
+	 * See Buffer::GetNativeHandle().
+	 */
+	[[nodiscard]] virtual uintptr_t GetNativeHandle() const
+	{
+		return 0;
+	}
 };
 
 class Shader

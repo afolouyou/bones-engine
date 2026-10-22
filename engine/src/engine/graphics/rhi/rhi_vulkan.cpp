@@ -253,6 +253,11 @@ public:
 		return m_desc.size;
 	}
 
+	[[nodiscard]] uintptr_t GetNativeHandle() const override
+	{
+		return reinterpret_cast<uintptr_t>(m_buffer);
+	}
+
 	[[nodiscard]] VkBuffer GetBuffer() const
 	{
 		return m_buffer;
@@ -404,6 +409,11 @@ public:
 	[[nodiscard]] const TextureDesc& GetDesc() const override
 	{
 		return m_desc;
+	}
+
+	[[nodiscard]] uintptr_t GetNativeHandle() const override
+	{
+		return reinterpret_cast<uintptr_t>(m_image);
 	}
 
 	[[nodiscard]] VkImage GetImage() const

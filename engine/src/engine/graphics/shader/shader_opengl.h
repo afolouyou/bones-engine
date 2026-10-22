@@ -19,6 +19,7 @@ class ShaderOpenGL : public Shader
 public:
 	~ShaderOpenGL();
 	static void Init();
+	static void Shutdown();
 
 protected:
 	void Load(const LoadOptions& loadOptions) override;

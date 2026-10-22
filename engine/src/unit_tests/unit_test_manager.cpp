@@ -137,6 +137,9 @@ void UnitTestManager::StartAllTests()
 
 		RendererContractResourcesTest rendererContractResourcesTest = RendererContractResourcesTest("Renderer Contract Resources");
 		TryTest(rendererContractResourcesTest);
+
+		RendererResourcesTest rendererResourcesTest = RendererResourcesTest("Renderer Resources");
+		TryTest(rendererResourcesTest);
 #endif
 
 #if defined(BONES_VULKAN)

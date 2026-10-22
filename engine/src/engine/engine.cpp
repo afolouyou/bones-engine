@@ -46,8 +46,15 @@
 #include <engine/network/network.h>
 
 // Gameplay
+#include <engine/game_elements/gameobject.h>
 #include <engine/game_elements/gameplay_manager.h>
 #include <engine/scene_management/scene_manager.h>
+
+// Smoke test scene content
+#if defined(EDITOR)
+#include <engine/graphics/3d_graphics/mesh_manager.h>
+#include <engine/graphics/3d_graphics/mesh_renderer.h>
+#endif
 
 // Game core
 #include "game_interface.h"
@@ -268,6 +275,35 @@ int Engine::Init(int argc, char* argv[])
 		}
 
 		Debug::Print("-------- Scene smoke test project loaded --------", true);
+
+		// Add a mesh so the smoke test covers mesh upload and the indexed draw
+		// path, not just an empty scene.
+		const std::filesystem::path executablePath = std::filesystem::absolute(s_engineArgs.executableLocation);
+		const std::filesystem::path smokeMeshPath = executablePath.parent_path() / "public_engine_assets/models/Cube.obj";
+		const std::shared_ptr<MeshData> smokeMesh = MeshManager::LoadMesh(smokeMeshPath.string());
+		if (smokeMesh && smokeMesh->GetFileStatus() == FileStatus::FileStatus_Loaded)
+		{
+			const std::shared_ptr<GameObject> smokeCube = CreateGameObjectEditor("Smoke Cube");
+			const std::shared_ptr<MeshRenderer> smokeRenderer = smokeCube->AddComponent<MeshRenderer>();
+			if (!smokeRenderer)
+			{
+				Debug::PrintError("-------- Scene smoke test could not create the smoke mesh renderer --------", true);
+				return -1;
+			}
+			smokeRenderer->SetMeshData(smokeMesh);
+			if (smokeRenderer->GetMaterials().empty() || !AssetManager::standardMaterial)
+			{
+				Debug::PrintError("-------- Scene smoke test has no material for the smoke mesh --------", true);
+				return -1;
+			}
+			smokeRenderer->SetMaterial(AssetManager::standardMaterial, 0);
+			Debug::Print("-------- Scene smoke test mesh loaded --------", true);
+		}
+		else
+		{
+			Debug::PrintError("-------- Scene smoke test failed to load the smoke mesh --------", true);
+			return -1;
+		}
 	}
 #endif
 

@@ -170,6 +170,11 @@ public:
 		return m_desc.size;
 	}
 
+	[[nodiscard]] uintptr_t GetNativeHandle() const override
+	{
+		return static_cast<uintptr_t>(m_id);
+	}
+
 	[[nodiscard]] GLuint GetId() const
 	{
 		return m_id;
@@ -240,6 +245,11 @@ public:
 	[[nodiscard]] const TextureDesc& GetDesc() const override
 	{
 		return m_desc;
+	}
+
+	[[nodiscard]] uintptr_t GetNativeHandle() const override
+	{
+		return static_cast<uintptr_t>(m_id);
 	}
 
 	[[nodiscard]] GLuint GetId() const

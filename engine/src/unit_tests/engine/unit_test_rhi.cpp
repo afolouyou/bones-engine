@@ -9,6 +9,10 @@
 #if !defined(__PS3__)
 
 #include <engine/graphics/rhi/rhi_opengl.h>
+#include <engine/graphics/renderer/renderer.h>
+#include <engine/graphics/3d_graphics/mesh_data.h>
+#include <engine/graphics/texture/texture_default.h>
+#include <engine/engine.h>
 #include <engine/ui/window.h>
 
 #include <glad/gl.h>
@@ -68,6 +72,18 @@ void main()
 	o_Color = texture(u_Texture, v_TexCoord) * tint;
 }
 )";
+
+	class TestTextureDefault final : public TextureDefault
+	{
+	public:
+		using TextureDefault::SetData;
+		using TextureDefault::Unload;
+
+		void Resize(int width, int height)
+		{
+			SetSize(width, height);
+		}
+	};
 
 	void RestoreRendererState()
 	{
@@ -331,6 +347,79 @@ TestResult RendererContractResourcesTest::Start(std::string& errorOut)
 	EXPECT_TRUE(pixels[corner + 0] < 15 && pixels[corner + 1] < 15 && pixels[corner + 2] > 240, "The resources render target was not cleared");
 
 	RestoreRendererState();
+	return testResult;
+}
+
+TestResult RendererResourcesTest::Start(std::string& errorOut)
+{
+	BEGIN_TEST();
+
+	bones::rhi::Device* device = Engine::GetRenderer().GetRhiDevice();
+	EXPECT_NOT_NULL(device, "The engine renderer has no RHI device");
+	if (!device)
+		return testResult;
+
+	std::shared_ptr<MeshData> mesh = MeshData::CreateMeshData();
+	EXPECT_NOT_NULL(mesh, "Failed to create the test mesh");
+
+	VertexDescriptor vertexDescriptor;
+	vertexDescriptor.AddVertexElement(VertexElement::POSITION_32_BITS);
+	vertexDescriptor.AddVertexElement(VertexElement::UV_32_BITS);
+	mesh->CreateSubMesh(3, 3, vertexDescriptor);
+
+	MeshData::SubMesh* subMesh = mesh->GetSubMesh(0).get();
+	EXPECT_NOT_NULL(subMesh, "Failed to create the test submesh");
+	if (!subMesh)
+		return testResult;
+
+	subMesh->SetVertex(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0);
+	subMesh->SetVertex(0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1);
+	subMesh->SetVertex(1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 2);
+	subMesh->SetIndex(0, 0);
+	subMesh->SetIndex(1, 1);
+	subMesh->SetIndex(2, 2);
+
+	// This is the same path a loaded mesh takes: CPU data goes through
+	// Renderer::UploadMeshData and the submesh owns the resulting RHI buffers.
+	mesh->Update();
+
+	EXPECT_NOT_NULL(subMesh->m_vertexBuffer.get(), "The submesh has no RHI vertex buffer");
+	EXPECT_NOT_NULL(subMesh->m_indexBuffer.get(), "The submesh has no RHI index buffer");
+	EXPECT_TRUE(subMesh->VAO != 0, "The submesh has no vertex array");
+
+	if (subMesh->m_vertexBuffer)
+	{
+		EXPECT_EQUALS(subMesh->m_vertexBuffer->GetSize(), 3 * 5 * sizeof(float), "Wrong vertex buffer size");
+		EXPECT_TRUE(subMesh->m_vertexBuffer->GetNativeHandle() != 0, "The vertex buffer has no native handle");
+	}
+	if (subMesh->m_indexBuffer)
+	{
+		EXPECT_EQUALS(subMesh->m_indexBuffer->GetSize(), 3 * sizeof(uint32_t), "Indices were not widened to 32 bits");
+		EXPECT_TRUE(subMesh->m_indexBuffer->GetNativeHandle() != 0, "The index buffer has no native handle");
+
+		glBindVertexArray(subMesh->VAO);
+		GLint boundIndexBuffer = 0;
+		glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &boundIndexBuffer);
+		EXPECT_EQUALS(static_cast<uintptr_t>(boundIndexBuffer), subMesh->m_indexBuffer->GetNativeHandle(), "The VAO does not use the RHI index buffer");
+		glBindVertexArray(0);
+	}
+
+	Engine::GetRenderer().DeleteSubMeshData(*subMesh);
+	EXPECT_NULL(subMesh->m_vertexBuffer.get(), "The vertex buffer was not released");
+	EXPECT_NULL(subMesh->m_indexBuffer.get(), "The index buffer was not released");
+	EXPECT_EQUALS(subMesh->VAO, 0, "The vertex array was not released");
+
+	TestTextureDefault texture;
+	texture.Resize(2, 2);
+	unsigned char pixels[2 * 2 * 4];
+	for (unsigned char& value : pixels)
+		value = 255;
+	texture.SetData(pixels);
+
+	EXPECT_TRUE(texture.GetTextureId() != 0, "The texture was not created through the RHI");
+	texture.Unload();
+	EXPECT_EQUALS(texture.GetTextureId(), 0u, "The RHI texture was not released");
+
 	return testResult;
 }
 

@@ -27,8 +27,12 @@
 #include <engine/asset_management/asset_manager.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <engine/file_system/async_file_loading.h>
+#include <engine/graphics/rhi/rhi.h>
 
-unsigned int uboLightBlock;
+namespace
+{
+	std::unique_ptr<bones::rhi::Buffer> uboLightBlock;
+}
 
 ShaderOpenGL::PointLightVariableIds::PointLightVariableIds(int index, unsigned int programId)
 {
@@ -97,11 +101,26 @@ void ShaderOpenGL::Init()
 {
 	XASSERT(Engine::IsCalledFromMainThread(), "Function called from another thread");
 
-#if defined(_WIN32) || defined(_WIN64) || defined(__LINUX__)
-	glGenBuffers(1, &uboLightBlock);
-	glBindBuffer(GL_UNIFORM_BUFFER, uboLightBlock);
-	glBufferData(GL_UNIFORM_BUFFER, sizeof(LightsIndices), NULL, GL_DYNAMIC_DRAW);
-#endif
+	bones::rhi::Device* device = Engine::GetRenderer().GetRhiDevice();
+	if (!device)
+	{
+		Debug::PrintError("[Shader] Cannot create the light uniform buffer without an RHI device", true);
+		return;
+	}
+
+	bones::rhi::BufferDesc desc;
+	desc.size = sizeof(LightsIndices);
+	desc.usage = bones::rhi::BufferUsage::Uniform;
+	uboLightBlock = device->CreateBuffer(desc);
+	if (!uboLightBlock)
+	{
+		Debug::PrintError("[Shader] Cannot create the light uniform buffer", true);
+	}
+}
+
+void ShaderOpenGL::Shutdown()
+{
+	uboLightBlock.reset();
 }
 
 void ShaderOpenGL::OnLoadFileReferenceFinished()
@@ -356,10 +375,14 @@ void ShaderOpenGL::SetLightIndices(const LightsIndices& lightsIndices)
 {
 	XASSERT(Engine::IsCalledFromMainThread(), "Function called from another thread");
 
-#if defined(_WIN32) || defined(_WIN64) || defined(__LINUX__)
-	glBindBuffer(GL_UNIFORM_BUFFER, uboLightBlock);
-	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(lightsIndices), &lightsIndices);
-#endif
+	if (!uboLightBlock)
+		return;
+
+	bones::rhi::Device* device = Engine::GetRenderer().GetRhiDevice();
+	if (!device)
+		return;
+
+	device->UpdateBuffer(*uboLightBlock, &lightsIndices, sizeof(lightsIndices));
 }
 
 unsigned int ShaderOpenGL::GetShaderUniformLocation(const char* name)
@@ -528,8 +551,10 @@ void ShaderOpenGL::Link()
 	{
 		GLuint bindingPoint = 0;
 		glUniformBlockBinding(m_programId, blockIndex, bindingPoint);
-		glBindBuffer(GL_UNIFORM_BUFFER, uboLightBlock);
-		glBindBufferBase(GL_UNIFORM_BUFFER, bindingPoint, uboLightBlock);
+		if (uboLightBlock)
+		{
+			glBindBufferBase(GL_UNIFORM_BUFFER, bindingPoint, static_cast<GLuint>(uboLightBlock->GetNativeHandle()));
+		}
 	}
 #endif
 }

@@ -14,9 +14,11 @@
 #include <engine/api.h>
 
 #include <array>
+#include <memory>
 
 #include "renderer.h"
 #include <engine/lighting/lighting.h>
+#include <engine/graphics/rhi/rhi.h>
 #include <engine/graphics/texture/texture.h>
 
 enum class BufferType
@@ -40,6 +42,7 @@ public:
 
 	[[nodiscard]] GraphicsApi GetGraphicsApi() const override;
 	[[nodiscard]] const RendererCapabilities& GetCapabilities() const override;
+	[[nodiscard]] bones::rhi::Device* GetRhiDevice() override;
 
 	[[nodiscard]] int Init() override;
 	void Setup() override;
@@ -78,9 +81,7 @@ public:
 private:
 	void ApplyTextureFilters(const Texture& texture);
 	[[nodiscard]] unsigned int CreateVertexArray();
-	[[nodiscard]] unsigned int CreateBuffer();
 	void BindVertexArray(unsigned int bufferId);
-	void DeleteBuffer(unsigned int bufferId);
 	void DeleteVertexArray(unsigned int bufferId);
 
 	[[nodiscard]] int GetBufferTypeEnum(BufferType bufferType);
@@ -96,6 +97,8 @@ private:
 	std::array<const Light*, MAX_LIGHT_COUNT> lastUpdatedLights = std::array<const Light*, MAX_LIGHT_COUNT>();
 	// int GetCullFaceEnum(CullFace face);
 	// float GetAnisotropicValueEnum(Texture::AnisotropicLevel level);
+
+	std::unique_ptr<bones::rhi::Device> m_rhiDevice;
 
 	RenderingSettings lastSettings;
 	unsigned int usedTexture = 0;

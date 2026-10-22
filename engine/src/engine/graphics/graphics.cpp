@@ -127,6 +127,10 @@ void Graphics::Stop()
 
 	ProjectManager::GetProjectLoadedEvent().Unbind(&Graphics::OnProjectLoaded);
 
+#if defined(_WIN32) || defined(_WIN64) || defined(__LINUX__)
+	ShaderOpenGL::Shutdown();
+#endif
+
 	cameras.clear();
 	usedCamera.reset();
 	s_iDrawablesCount = 0;
