@@ -220,10 +220,12 @@ MAKE_TEST(VertexDescriptorGetVertexElementSize);
 
 #if !defined(__PS3__)
 MAKE_TEST(RendererContract);
+MAKE_TEST(RendererContractResources);
 #endif
 
 #if defined(BONES_VULKAN)
 MAKE_TEST(RendererContractVulkan);
+MAKE_TEST(RendererContractResourcesVulkan);
 #endif
 
 #pragma endregion

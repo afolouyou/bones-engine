@@ -199,7 +199,7 @@ pub fn build(b: *std.Build) void {
     b.installFile(b.fmt("{s}/Roboto Regular.ttf", .{EnginePaths.app_res}), "bin/Roboto Regular.ttf");
 
     // SPIR-V used by the Vulkan renderer contract test.
-    const test_shaders = [_][]const u8{ "triangle.vert.spv", "triangle.frag.spv" };
+    const test_shaders = [_][]const u8{ "triangle.vert.spv", "triangle.frag.spv", "quad.vert.spv", "quad.frag.spv" };
     for (test_shaders) |shader| {
         b.installFile(b.fmt("tests/shaders/{s}", .{shader}), b.fmt("bin/test_shaders/{s}", .{shader}));
     }

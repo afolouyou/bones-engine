@@ -19,6 +19,9 @@
  * - Texture and buffer objects are owned by the caller (unique_ptr).
  * - Command lists are recorded on one thread and submitted on that thread.
  * - Bindings are explicit; there is no implicit global state.
+ * - Shader bindings use explicit `layout(binding = N)` qualifiers that match
+ *   PipelineDesc::descriptorBindings. Slot numbers are shared by uniform
+ *   buffers and textures (one descriptor set, set 0).
  */
 
 #include <cstddef>
@@ -91,6 +94,30 @@ enum class ShaderStage : uint8_t
 	Vertex,
 	Fragment,
 	Compute,
+};
+
+enum class ShaderStageFlags : uint8_t
+{
+	None = 0,
+	Vertex = 1 << 0,
+	Fragment = 1 << 1,
+	Compute = 1 << 2,
+};
+
+inline ShaderStageFlags operator|(ShaderStageFlags left, ShaderStageFlags right)
+{
+	return static_cast<ShaderStageFlags>(static_cast<uint8_t>(left) | static_cast<uint8_t>(right));
+}
+
+inline bool HasShaderStage(ShaderStageFlags value, ShaderStageFlags flag)
+{
+	return (static_cast<uint8_t>(value) & static_cast<uint8_t>(flag)) != 0;
+}
+
+enum class DescriptorType : uint8_t
+{
+	UniformBuffer,
+	Texture,
 };
 
 enum class Topology : uint8_t
@@ -192,6 +219,13 @@ struct VertexLayout
 	std::vector<VertexAttribute> attributes;
 };
 
+struct DescriptorBinding
+{
+	uint32_t binding = 0;
+	DescriptorType type = DescriptorType::UniformBuffer;
+	ShaderStageFlags stages = ShaderStageFlags::Vertex | ShaderStageFlags::Fragment;
+};
+
 struct PipelineDesc
 {
 	Shader* vertexShader = nullptr;
@@ -206,6 +240,8 @@ struct PipelineDesc
 	BlendMode blendMode = BlendMode::Opaque;
 	Format colorFormat = Format::R8G8B8A8_UNorm;
 	Format depthFormat = Format::Undefined;
+	/** Descriptor bindings in set 0. Buffer and texture slots share one namespace. */
+	std::vector<DescriptorBinding> descriptorBindings;
 };
 
 struct Viewport

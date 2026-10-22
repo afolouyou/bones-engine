@@ -20,6 +20,13 @@ namespace bones::rhi
 *
 * The device is headless: it does not create a window, a surface or a
 * swapchain. Rendering goes to textures created with TextureUsage::RenderTarget.
+*
+* Current limits:
+* - Sampled textures need initial data; render targets are not yet transitioned
+*   for sampling.
+* - Descriptor sets are allocated per draw (up to 1024 draws per command list).
+* - Submission is synchronous and single-threaded.
+* - Only RGBA8 textures can be uploaded and read back.
 */
 std::unique_ptr<Device> CreateVulkanDevice();
 

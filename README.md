@@ -18,7 +18,7 @@ It is a continuation of [Xenity Engine](https://github.com/Fewnity/Xenity-Engine
 
 - **0.01** (in progress) — Bones Engine branding, stable Zig build, C ABI (`bones/api.h`), runtime/editor split and CI. Remaining: automated scene smoke test and Windows linking.
 - **0.02** (in progress) — backend capabilities and the explicit `Device`/`Buffer`/`Texture`/`Shader`/`Pipeline`/`CommandList` contract, with tested OpenGL and Vulkan implementations. Remaining: move the engine renderer onto the contract.
-- **0.03** (started) — Vulkan backend foundation: headless device, buffers, shaders, pipelines, offscreen rendering and readback. Remaining: descriptor bindings, swapchain presentation and the 1.4 feature set.
+- **0.03** (started) — Vulkan backend foundation: headless device, buffers, shaders, pipelines, descriptor bindings, offscreen rendering and readback. Remaining: swapchain presentation and the 1.4 feature set.
 - **0.04** — Jolt Physics replaces Bullet, with a new physics format.
 - **0.05** — Stable plugin ABI (Nim scripting support is exploratory).
 - **0.06** — FLTK-based editor UI.
@@ -59,7 +59,7 @@ zig build -Deditor=false -Dgame-source=tests/runtime_game
 
 Hosts can drive the engine through the stable C ABI in `engine/src/bones/api.h` (`bones_init`, `bones_run`, `bones_stop`, `bones_quit`). The header is installed to `zig-out/include/bones/api.h` and stays valid C.
 
-The internal renderer contract is `engine/src/engine/graphics/rhi/rhi.h` (`Device`, `Buffer`, `Texture`, `Shader`, `Pipeline`, `CommandList`). The OpenGL implementation in `rhi_opengl.cpp` is the reference backend; the `Renderer Contract` unit test draws a triangle into an offscreen target and reads the pixels back. The Vulkan implementation in `rhi_vulkan.cpp` renders the same triangle headlessly through dynamic rendering; it is enabled by default on Linux (`-Dvulkan=false` disables it) and covered by `Renderer Contract (Vulkan)`. Vulkan descriptor bindings and window presentation are not implemented yet.
+The internal renderer contract is `engine/src/engine/graphics/rhi/rhi.h` (`Device`, `Buffer`, `Texture`, `Shader`, `Pipeline`, `CommandList`). The OpenGL implementation in `rhi_opengl.cpp` is the reference backend; the `Renderer Contract` unit test draws a triangle into an offscreen target and reads the pixels back. The Vulkan implementation in `rhi_vulkan.cpp` renders headlessly through dynamic rendering; it is enabled by default on Linux (`-Dvulkan=false` disables it) and covered by `Renderer Contract (Vulkan)` and `Renderer Contract Resources (Vulkan)`. The resources tests on both backends cover uniform buffers, textures, index buffers and readback. Vulkan window presentation is not implemented yet.
 
 PS3 builds still use the PSL1GHT Makefile inside Docker (`app/packaging`).
 
@@ -71,6 +71,7 @@ PS3 builds still use the PSL1GHT Makefile inside Docker (`app/packaging`).
 - `app/res` — Windows resources (icon, `.rc`).
 - `app/packaging` — Dockerfile, PS3 Makefile and shader compilation script.
 - `tests/runtime_game` — minimal game used to build and smoke-test the runtime without the editor.
+- `tests/shaders` — GLSL sources and checked-in SPIR-V used by the renderer contract tests.
 - `third_party` — vendored libraries (headers in `third_party/<lib>`, prebuilt binaries in `third_party/libs`).
 - `build.zig` — build definition.
 

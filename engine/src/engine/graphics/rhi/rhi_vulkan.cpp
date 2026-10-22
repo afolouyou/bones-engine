@@ -26,6 +26,11 @@ void LogVulkan(const char* message, VkResult result)
 	std::fprintf(stderr, "[Vulkan] %s (VkResult %d)\n", message, static_cast<int>(result));
 }
 
+void LogVulkanMessage(const char* message)
+{
+	std::fprintf(stderr, "[Vulkan] %s\n", message);
+}
+
 bool GetTextureFormat(Format format, VkFormat& outFormat, VkImageAspectFlags& outAspect)
 {
 	switch (format)
@@ -115,6 +120,18 @@ void TransitionImage(VkCommandBuffer commandBuffer, VkImage image, VkImageAspect
 	vkCmdPipelineBarrier(commandBuffer,
 		VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
 		0, 0, nullptr, 0, nullptr, 1, &barrier);
+}
+
+VkShaderStageFlags ToVkShaderStageFlags(ShaderStageFlags stages)
+{
+	VkShaderStageFlags flags = 0;
+	if (HasShaderStage(stages, ShaderStageFlags::Vertex))
+		flags |= VK_SHADER_STAGE_VERTEX_BIT;
+	if (HasShaderStage(stages, ShaderStageFlags::Fragment))
+		flags |= VK_SHADER_STAGE_FRAGMENT_BIT;
+	if (HasShaderStage(stages, ShaderStageFlags::Compute))
+		flags |= VK_SHADER_STAGE_COMPUTE_BIT;
+	return flags == 0 ? VK_SHADER_STAGE_ALL_GRAPHICS : flags;
 }
 
 VkBufferUsageFlags GetBufferUsage(BufferUsage usage)
@@ -399,6 +416,11 @@ public:
 		return m_view;
 	}
 
+	[[nodiscard]] VkSampler GetSampler() const
+	{
+		return m_sampler;
+	}
+
 	[[nodiscard]] VkImageAspectFlags GetAspect() const
 	{
 		return m_aspect;
@@ -487,6 +509,8 @@ public:
 			vkDestroyPipeline(m_device, m_pipeline, nullptr);
 		if (m_layout != VK_NULL_HANDLE)
 			vkDestroyPipelineLayout(m_device, m_layout, nullptr);
+		if (m_setLayout != VK_NULL_HANDLE)
+			vkDestroyDescriptorSetLayout(m_device, m_setLayout, nullptr);
 	}
 
 	bool Create(VkDevice device)
@@ -510,8 +534,43 @@ public:
 		if (m_desc.depthFormat != Format::Undefined && !GetTextureFormat(m_desc.depthFormat, depthFormat, depthAspect))
 			return false;
 
+		if (!m_desc.descriptorBindings.empty())
+		{
+			std::vector<VkDescriptorSetLayoutBinding> layoutBindings;
+			layoutBindings.reserve(m_desc.descriptorBindings.size());
+			for (const DescriptorBinding& binding : m_desc.descriptorBindings)
+			{
+				VkDescriptorSetLayoutBinding layoutBinding{};
+				layoutBinding.binding = binding.binding;
+				layoutBinding.descriptorType = binding.type == DescriptorType::Texture
+					? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+					: VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+				layoutBinding.descriptorCount = 1;
+				layoutBinding.stageFlags = ToVkShaderStageFlags(binding.stages);
+				layoutBindings.push_back(layoutBinding);
+			}
+
+			VkDescriptorSetLayoutCreateInfo setLayoutInfo{};
+			setLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+			setLayoutInfo.bindingCount = static_cast<uint32_t>(layoutBindings.size());
+			setLayoutInfo.pBindings = layoutBindings.data();
+
+			VkResult result = vkCreateDescriptorSetLayout(m_device, &setLayoutInfo, nullptr, &m_setLayout);
+			if (result != VK_SUCCESS)
+			{
+				LogVulkan("vkCreateDescriptorSetLayout failed", result);
+				m_setLayout = VK_NULL_HANDLE;
+				return false;
+			}
+		}
+
 		VkPipelineLayoutCreateInfo layoutInfo{};
 		layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		if (m_setLayout != VK_NULL_HANDLE)
+		{
+			layoutInfo.setLayoutCount = 1;
+			layoutInfo.pSetLayouts = &m_setLayout;
+		}
 		VkResult result = vkCreatePipelineLayout(m_device, &layoutInfo, nullptr, &m_layout);
 		if (result != VK_SUCCESS)
 		{
@@ -676,6 +735,16 @@ public:
 		return m_layout;
 	}
 
+	[[nodiscard]] VkDescriptorSetLayout GetSetLayout() const
+	{
+		return m_setLayout;
+	}
+
+	[[nodiscard]] const std::vector<DescriptorBinding>& GetDescriptorBindings() const
+	{
+		return m_desc.descriptorBindings;
+	}
+
 	[[nodiscard]] const PipelineDesc& GetDesc() const
 	{
 		return m_desc;
@@ -686,6 +755,7 @@ private:
 	VkDevice m_device = VK_NULL_HANDLE;
 	VkPipeline m_pipeline = VK_NULL_HANDLE;
 	VkPipelineLayout m_layout = VK_NULL_HANDLE;
+	VkDescriptorSetLayout m_setLayout = VK_NULL_HANDLE;
 	VkImageAspectFlags m_aspect = VK_IMAGE_ASPECT_COLOR_BIT;
 };
 
@@ -805,6 +875,7 @@ private:
 	VulkanDevice& m_owner;
 	VkCommandPool m_pool = VK_NULL_HANDLE;
 	VkCommandBuffer m_commandBuffer = VK_NULL_HANDLE;
+	VkDescriptorPool m_descriptorPool = VK_NULL_HANDLE;
 	VkRhiPipeline* m_pipeline = nullptr;
 	VkBuffer m_vertexBuffer = VK_NULL_HANDLE;
 	VkBuffer m_indexBuffer = VK_NULL_HANDLE;
@@ -812,10 +883,31 @@ private:
 	bool m_recording = false;
 	bool m_inPass = false;
 	bool m_ready = false;
+
+	struct UniformBinding
+	{
+		uint32_t slot = 0;
+		VkBuffer buffer = VK_NULL_HANDLE;
+		uint64_t offset = 0;
+		uint64_t size = 0;
+	};
+
+	struct TextureBinding
+	{
+		uint32_t slot = 0;
+		VkTexture* texture = nullptr;
+	};
+
+	std::vector<UniformBinding> m_uniformBindings;
+	std::vector<TextureBinding> m_textureBindings;
+
+	bool BindDescriptors();
 };
 
 VkCommandList::~VkCommandList()
 {
+	if (m_descriptorPool != VK_NULL_HANDLE)
+		vkDestroyDescriptorPool(m_owner.GetDevice(), m_descriptorPool, nullptr);
 	if (m_pool != VK_NULL_HANDLE)
 		vkDestroyCommandPool(m_owner.GetDevice(), m_pool, nullptr);
 }
@@ -846,12 +938,34 @@ bool VkCommandList::Init()
 		LogVulkan("vkAllocateCommandBuffers failed", result);
 		return false;
 	}
+
+	VkDescriptorPoolSize poolSizes[2] = {
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1024 },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1024 },
+	};
+	VkDescriptorPoolCreateInfo descriptorPoolInfo{};
+	descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	descriptorPoolInfo.maxSets = 1024;
+	descriptorPoolInfo.poolSizeCount = 2;
+	descriptorPoolInfo.pPoolSizes = poolSizes;
+
+	result = vkCreateDescriptorPool(m_owner.GetDevice(), &descriptorPoolInfo, nullptr, &m_descriptorPool);
+	if (result != VK_SUCCESS)
+	{
+		LogVulkan("vkCreateDescriptorPool failed", result);
+		m_descriptorPool = VK_NULL_HANDLE;
+		return false;
+	}
 	return true;
 }
 
 void VkCommandList::Begin()
 {
 	vkResetCommandPool(m_owner.GetDevice(), m_pool, 0);
+	if (m_descriptorPool != VK_NULL_HANDLE)
+		vkResetDescriptorPool(m_owner.GetDevice(), m_descriptorPool, 0);
+	m_uniformBindings.clear();
+	m_textureBindings.clear();
 	m_pipeline = nullptr;
 	m_vertexBuffer = VK_NULL_HANDLE;
 	m_indexBuffer = VK_NULL_HANDLE;
@@ -1000,18 +1114,144 @@ void VkCommandList::BindIndexBuffer(Buffer& buffer)
 
 void VkCommandList::BindUniformBuffer(uint32_t slot, Buffer& buffer, uint64_t offset, uint64_t size)
 {
-	// Descriptor bindings are the next Vulkan milestone.
-	(void)slot;
-	(void)buffer;
-	(void)offset;
-	(void)size;
+	VkRhiBuffer& vkBuffer = static_cast<VkRhiBuffer&>(buffer);
+	if (vkBuffer.GetUsage() != BufferUsage::Uniform)
+		return;
+
+	for (UniformBinding& binding : m_uniformBindings)
+	{
+		if (binding.slot == slot)
+		{
+			binding.buffer = vkBuffer.GetBuffer();
+			binding.offset = offset;
+			binding.size = size;
+			return;
+		}
+	}
+
+	UniformBinding binding;
+	binding.slot = slot;
+	binding.buffer = vkBuffer.GetBuffer();
+	binding.offset = offset;
+	binding.size = size;
+	m_uniformBindings.push_back(binding);
 }
 
 void VkCommandList::BindTexture(uint32_t slot, Texture& texture)
 {
-	// Descriptor bindings are the next Vulkan milestone.
-	(void)slot;
-	(void)texture;
+	for (TextureBinding& binding : m_textureBindings)
+	{
+		if (binding.slot == slot)
+		{
+			binding.texture = static_cast<VkTexture*>(&texture);
+			return;
+		}
+	}
+
+	TextureBinding binding;
+	binding.slot = slot;
+	binding.texture = static_cast<VkTexture*>(&texture);
+	m_textureBindings.push_back(binding);
+}
+
+bool VkCommandList::BindDescriptors()
+{
+	if (m_pipeline == nullptr)
+		return false;
+
+	const std::vector<DescriptorBinding>& bindings = m_pipeline->GetDescriptorBindings();
+	if (bindings.empty())
+		return true;
+
+	if (m_descriptorPool == VK_NULL_HANDLE)
+		return false;
+
+	const VkDescriptorSetLayout setLayout = m_pipeline->GetSetLayout();
+	if (setLayout == VK_NULL_HANDLE)
+		return false;
+
+	VkDescriptorSetAllocateInfo allocateInfo{};
+	allocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocateInfo.descriptorPool = m_descriptorPool;
+	allocateInfo.descriptorSetCount = 1;
+	allocateInfo.pSetLayouts = &setLayout;
+
+	VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+	VkResult result = vkAllocateDescriptorSets(m_owner.GetDevice(), &allocateInfo, &descriptorSet);
+	if (result != VK_SUCCESS)
+	{
+		LogVulkan("vkAllocateDescriptorSets failed", result);
+		return false;
+	}
+
+	for (const DescriptorBinding& binding : bindings)
+	{
+		if (binding.type == DescriptorType::UniformBuffer)
+		{
+			const UniformBinding* uniform = nullptr;
+			for (const UniformBinding& candidate : m_uniformBindings)
+			{
+				if (candidate.slot == binding.binding)
+				{
+					uniform = &candidate;
+					break;
+				}
+			}
+			if (uniform == nullptr)
+				return false;
+
+			VkDescriptorBufferInfo bufferInfo{};
+			bufferInfo.buffer = uniform->buffer;
+			bufferInfo.offset = uniform->offset;
+			bufferInfo.range = uniform->size > 0 ? uniform->size : VK_WHOLE_SIZE;
+
+			VkWriteDescriptorSet write{};
+			write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			write.dstSet = descriptorSet;
+			write.dstBinding = binding.binding;
+			write.descriptorCount = 1;
+			write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			write.pBufferInfo = &bufferInfo;
+			vkUpdateDescriptorSets(m_owner.GetDevice(), 1, &write, 0, nullptr);
+		}
+		else
+		{
+			const TextureBinding* textureBinding = nullptr;
+			for (const TextureBinding& candidate : m_textureBindings)
+			{
+				if (candidate.slot == binding.binding)
+				{
+					textureBinding = &candidate;
+					break;
+				}
+			}
+			if (textureBinding == nullptr || textureBinding->texture == nullptr)
+				return false;
+			if (textureBinding->texture->layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+			{
+				LogVulkanMessage("Bound texture is not in a shader-readable layout");
+				return false;
+			}
+
+			VkDescriptorImageInfo imageInfo{};
+			imageInfo.sampler = textureBinding->texture->GetSampler();
+			imageInfo.imageView = textureBinding->texture->GetView();
+			imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+			VkWriteDescriptorSet write{};
+			write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			write.dstSet = descriptorSet;
+			write.dstBinding = binding.binding;
+			write.descriptorCount = 1;
+			write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			write.pImageInfo = &imageInfo;
+			vkUpdateDescriptorSets(m_owner.GetDevice(), 1, &write, 0, nullptr);
+		}
+	}
+
+	vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->GetLayout(),
+		0, 1, &descriptorSet, 0, nullptr);
+	return true;
 }
 
 void VkCommandList::Draw(uint32_t vertexCount, uint32_t firstVertex)
@@ -1022,6 +1262,8 @@ void VkCommandList::Draw(uint32_t vertexCount, uint32_t firstVertex)
 	vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->GetPipeline());
 	const VkDeviceSize offset = 0;
 	vkCmdBindVertexBuffers(m_commandBuffer, 0, 1, &m_vertexBuffer, &offset);
+	if (!BindDescriptors())
+		return;
 	vkCmdDraw(m_commandBuffer, vertexCount, 1, firstVertex, 0);
 }
 
@@ -1034,6 +1276,8 @@ void VkCommandList::DrawIndexed(uint32_t indexCount, uint32_t firstIndex)
 	const VkDeviceSize offset = 0;
 	vkCmdBindVertexBuffers(m_commandBuffer, 0, 1, &m_vertexBuffer, &offset);
 	vkCmdBindIndexBuffer(m_commandBuffer, m_indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+	if (!BindDescriptors())
+		return;
 	vkCmdDrawIndexed(m_commandBuffer, indexCount, 1, firstIndex, 0, 0);
 }
 
