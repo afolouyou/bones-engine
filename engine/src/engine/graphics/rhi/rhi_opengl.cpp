@@ -220,24 +220,39 @@ public:
 		TextureFormatInfo info;
 		if (m_desc.width == 0 || m_desc.height == 0 || !GetTextureFormatInfo(m_desc.format, info))
 			return false;
+		if (m_desc.sampleCount == 0 || (m_desc.sampleCount > 1 && (m_desc.sampleCount & (m_desc.sampleCount - 1)) != 0))
+			return false;
+
+		const bool multisampled = m_desc.sampleCount > 1;
+		if (multisampled && initialData != nullptr)
+			return false;
 
 		glGenTextures(1, &m_id);
 		if (m_id == 0)
 			return false;
 
-		glBindTexture(GL_TEXTURE_2D, m_id);
-		glTexImage2D(GL_TEXTURE_2D, 0, info.internalFormat,
-			static_cast<GLsizei>(m_desc.width), static_cast<GLsizei>(m_desc.height),
-			0, info.format, info.type, initialData);
+		const GLenum target = multisampled ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
+		glBindTexture(target, m_id);
+		if (multisampled)
+		{
+			glTexImage2DMultisample(target, static_cast<GLsizei>(m_desc.sampleCount), info.internalFormat,
+				static_cast<GLsizei>(m_desc.width), static_cast<GLsizei>(m_desc.height), GL_TRUE);
+		}
+		else
+		{
+			glTexImage2D(target, 0, info.internalFormat,
+				static_cast<GLsizei>(m_desc.width), static_cast<GLsizei>(m_desc.height),
+				0, info.format, info.type, initialData);
 
-		const GLint minFilter = m_desc.minFilter == Filter::Nearest ? GL_NEAREST : GL_LINEAR;
-		const GLint magFilter = m_desc.magFilter == Filter::Nearest ? GL_NEAREST : GL_LINEAR;
-		const GLint wrap = m_desc.wrap == WrapMode::Repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE;
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minFilter);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap);
-		glBindTexture(GL_TEXTURE_2D, 0);
+			const GLint minFilter = m_desc.minFilter == Filter::Nearest ? GL_NEAREST : GL_LINEAR;
+			const GLint magFilter = m_desc.magFilter == Filter::Nearest ? GL_NEAREST : GL_LINEAR;
+			const GLint wrap = m_desc.wrap == WrapMode::Repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE;
+			glTexParameteri(target, GL_TEXTURE_MIN_FILTER, minFilter);
+			glTexParameteri(target, GL_TEXTURE_MAG_FILTER, magFilter);
+			glTexParameteri(target, GL_TEXTURE_WRAP_S, wrap);
+			glTexParameteri(target, GL_TEXTURE_WRAP_T, wrap);
+		}
+		glBindTexture(target, 0);
 
 		return true;
 	}

@@ -7,6 +7,8 @@
 #include "engine.h"
 
 #if defined(EDITOR)
+#include <algorithm>
+#include <cmath>
 #include <filesystem>
 #endif
 
@@ -36,8 +38,11 @@
 #include "engine_settings.h"
 
 // Renderers
+#include <engine/graphics/camera.h>
+#include <engine/graphics/graphics.h>
 #include <engine/graphics/renderer/renderer_opengl.h>
 #include <engine/graphics/renderer/renderer_rsx.h>
+#include <engine/ui/window.h>
 
 // Audio
 #include <engine/audio/audio_manager.h>
@@ -111,6 +116,70 @@ std::unique_ptr<GameInterface> Engine::s_game = nullptr;
 Event<>* Engine::s_onWindowFocusEvent = new Event<>();
 #if defined(_WIN32) || defined(_WIN64) || defined(__LINUX__)
 std::thread::id Engine::threadId;
+#endif
+
+#if defined(EDITOR)
+namespace
+{
+	/**
+	 * @brief Check that the scene camera contains more than its clear colour.
+	 *
+	 * The smoke project has a lit cube in front of the start camera, so a flat
+	 * frame means the mesh upload or the camera render target broke.
+	 */
+	bool ValidateSceneSmokeFrame()
+	{
+		bool checkedCamera = false;
+		for (const std::weak_ptr<Camera>& weakCamera : Graphics::cameras)
+		{
+			const std::shared_ptr<Camera> camera = weakCamera.lock();
+			if (!camera || !camera->IsEnabled())
+				continue;
+
+			const int width = camera->GetWidth();
+			const int height = camera->GetHeight();
+			if (width <= 2 || height <= 2 || width > Window::GetWidth() || height > Window::GetHeight())
+				continue;
+
+			const std::unique_ptr<uint8_t[]> pixels = camera->GetRawFrameBuffer();
+			if (!pixels)
+				continue;
+
+			checkedCamera = true;
+
+			const size_t corner = (static_cast<size_t>(2) * width + 2) * 3;
+			int maxDifference = 0;
+			for (int y = height / 4; y < (height * 3) / 4; y += 8)
+			{
+				for (int x = width / 4; x < (width * 3) / 4; x += 8)
+				{
+					const size_t pixel = (static_cast<size_t>(y) * width + x) * 3;
+					const int difference =
+						std::abs(static_cast<int>(pixels[pixel + 0]) - static_cast<int>(pixels[corner + 0])) +
+						std::abs(static_cast<int>(pixels[pixel + 1]) - static_cast<int>(pixels[corner + 1])) +
+						std::abs(static_cast<int>(pixels[pixel + 2]) - static_cast<int>(pixels[corner + 2]));
+					maxDifference = std::max(maxDifference, difference);
+				}
+			}
+
+			if (maxDifference >= 24)
+			{
+				Debug::Print("-------- Scene smoke test mesh drawn --------", true);
+				return true;
+			}
+		}
+
+		if (!checkedCamera)
+		{
+			Debug::PrintError("-------- Scene smoke test failed: no camera frame was readable --------", true);
+		}
+		else
+		{
+			Debug::PrintError("-------- Scene smoke test failed: the smoke mesh was not drawn --------", true);
+		}
+		return false;
+	}
+}
 #endif
 
 int Engine::Init(int argc, char* argv[])
@@ -564,6 +633,10 @@ void Engine::Loop()
 						s_smokeSceneDrawn = true;
 						s_smokeFrames = 0;
 						Debug::Print("-------- Scene smoke test scene drawn --------", true);
+						if (!ValidateSceneSmokeFrame())
+						{
+							s_isRunning = false;
+						}
 					}
 					else if (++s_smokeFrames > 600)
 					{

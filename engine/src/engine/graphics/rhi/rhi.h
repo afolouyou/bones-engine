@@ -192,6 +192,11 @@ struct TextureDesc
 	Filter minFilter = Filter::Linear;
 	Filter magFilter = Filter::Linear;
 	WrapMode wrap = WrapMode::ClampToEdge;
+	/**
+	 * 1 for a regular texture, or a larger sample count for a multisampled render target.
+	 * Backends reject sample counts they do not support.
+	 */
+	uint32_t sampleCount = 1;
 	const char* debugName = nullptr;
 };
 

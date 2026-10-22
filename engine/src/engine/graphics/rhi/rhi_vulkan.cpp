@@ -1577,6 +1577,15 @@ void VulkanDevice::UpdateBuffer(Buffer& buffer, const void* data, uint64_t size,
 
 std::unique_ptr<Texture> VulkanDevice::CreateTexture(const TextureDesc& desc, const void* initialData)
 {
+	if (desc.sampleCount == 0 || (desc.sampleCount > 1 && (desc.sampleCount & (desc.sampleCount - 1)) != 0))
+		return nullptr;
+	if (desc.sampleCount > 1)
+	{
+		// Multisampled render targets need resolve support in the command list,
+		// which the Vulkan backend does not implement yet.
+		return nullptr;
+	}
+
 	auto texture = std::make_unique<VkTexture>(m_device, m_physicalDevice, desc);
 	if (!texture->Create())
 		return nullptr;

@@ -6,6 +6,8 @@
 
 #include "camera.h"
 
+#include <cstdint>
+
 #if defined(_WIN32) || defined(_WIN64) || defined(__LINUX__)
 #include <glad/gl.h>
 #endif
@@ -54,28 +56,27 @@ Camera::~Camera()
 	XASSERT(Engine::IsCalledFromMainThread(), "Function called from another thread");
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__LINUX__)
-	if (m_framebuffer != -1)
+	if (m_framebuffer != 0)
 	{
 		glDeleteFramebuffers(1, &m_framebuffer);
+		m_framebuffer = 0;
 	}
-	if (m_secondFramebuffer != -1)
+	if (m_secondFramebuffer != 0)
 	{
 		glDeleteFramebuffers(1, &m_secondFramebuffer);
+		m_secondFramebuffer = 0;
 	}
-	if (m_framebufferTexture != -1)
-	{
-		glDeleteTextures(1, &m_framebufferTexture);
-	}
-	if (m_secondFramebufferTexture != -1)
-	{
-		glDeleteTextures(1, &m_secondFramebufferTexture);
-	}
-	if (m_depthframebuffer != -1)
-	{
-		glDeleteRenderbuffers(1, &m_depthframebuffer);
-	}
+	ReleaseFrameBufferTextures();
 #endif
 	GetTransformRaw()->GetOnTransformUpdated().Unbind(&Camera::UpdateCameraTransformMatrix, this);
+}
+
+void Camera::ReleaseFrameBufferTextures()
+{
+	m_colorTexture.reset();
+	m_resolveTexture.reset();
+	m_depthTexture.reset();
+	m_secondFramebufferTexture = 0;
 }
 
 void Camera::OnComponentAttached()
@@ -111,6 +112,11 @@ std::unique_ptr<uint8_t[]> Camera::GetRawFrameBuffer()
 	std::unique_ptr<uint8_t[]> frameBufferData = std::make_unique<uint8_t[]>(frameBufferWidth * frameBufferHeight * 3); // Other platforms
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__LINUX__)
+	if (m_secondFramebufferTexture == 0)
+	{
+		return nullptr;
+	}
+
 	// Read from texture
 	glBindTexture(GL_TEXTURE_2D, m_secondFramebufferTexture);
 	glPixelStorei(GL_PACK_ALIGNMENT, 1);
@@ -344,80 +350,105 @@ void Camera::UpdateFrameBuffer()
 	XASSERT(Engine::IsCalledFromMainThread(), "Function called from another thread");
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__LINUX__)
-	if (m_needFrameBufferUpdate)
+	if (!m_needFrameBufferUpdate)
+		return;
+
+	ReleaseFrameBufferTextures();
+
+	bones::rhi::Device* device = Engine::GetRenderer().GetRhiDevice();
+	if (!device)
 	{
-		if (m_framebufferTexture != -1)
-		{
-			glDeleteTextures(1, &m_framebufferTexture);
-			m_framebufferTexture = -1;
-		}
-		if (m_secondFramebufferTexture != -1)
-		{
-			glDeleteTextures(1, &m_secondFramebufferTexture);
-			m_secondFramebufferTexture = -1;
-		}
-		if (m_depthframebuffer != -1)
-		{
-			glDeleteRenderbuffers(1, &m_depthframebuffer);
-			m_depthframebuffer = -1;
-		}
-
-		if (m_useMultisampling)
-		{
-			int sample = 8;
-			glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
-			glGenTextures(1, &m_framebufferTexture);
-			glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, m_framebufferTexture);
-			glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, sample, GL_RGB, m_width, m_height, GL_TRUE);
-			glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, m_framebufferTexture, 0);
-
-			glGenRenderbuffers(1, &m_depthframebuffer);
-			glBindRenderbuffer(GL_RENDERBUFFER, m_depthframebuffer);
-			glRenderbufferStorageMultisample(GL_RENDERBUFFER, sample, GL_DEPTH_COMPONENT, m_width, m_height);
-			glBindRenderbuffer(GL_RENDERBUFFER, 0);
-			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, m_depthframebuffer);
-
-			if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-				Debug::PrintError("[Camera::UpdateFrameBuffer] Framebuffer not created", true);
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-			//Screen buffer
-			glBindFramebuffer(GL_FRAMEBUFFER, m_secondFramebuffer);
-			glGenTextures(1, &m_secondFramebufferTexture);
-			glBindTexture(GL_TEXTURE_2D, m_secondFramebufferTexture);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, m_width, m_height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-			glBindTexture(GL_TEXTURE_2D, 0);
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_secondFramebufferTexture, 0);
-
-			if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-				Debug::PrintError("[Camera::UpdateFrameBuffer] Framebuffer not created", true);
-		}
-		else
-		{
-			glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
-			glGenTextures(1, &m_secondFramebufferTexture);
-			glBindTexture(GL_TEXTURE_2D, m_secondFramebufferTexture);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, m_width, m_height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-			glBindTexture(GL_TEXTURE_2D, 0);
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_secondFramebufferTexture, 0);
-
-			glGenRenderbuffers(1, &m_depthframebuffer);
-			glBindRenderbuffer(GL_RENDERBUFFER, m_depthframebuffer);
-			glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, m_width, m_height);
-			glBindRenderbuffer(GL_RENDERBUFFER, 0);
-			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, m_depthframebuffer);
-
-			if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-				Debug::PrintError("[Camera::UpdateFrameBuffer] Framebuffer not created", true);
-		}
-
+		Debug::PrintError("[Camera::UpdateFrameBuffer] Cannot create the frame buffer without an RHI device", true);
 		m_needFrameBufferUpdate = false;
+		return;
 	}
+
+	const uint32_t sampleCount = m_useMultisampling ? 8 : 1;
+
+	bones::rhi::TextureDesc colorDesc;
+	colorDesc.width = static_cast<uint32_t>(m_width);
+	colorDesc.height = static_cast<uint32_t>(m_height);
+	colorDesc.format = bones::rhi::Format::R8G8B8A8_UNorm;
+	colorDesc.usage = bones::rhi::TextureUsage::RenderTarget | bones::rhi::TextureUsage::Sampled;
+	colorDesc.minFilter = bones::rhi::Filter::Linear;
+	colorDesc.magFilter = bones::rhi::Filter::Linear;
+	colorDesc.wrap = bones::rhi::WrapMode::ClampToEdge;
+	colorDesc.sampleCount = sampleCount;
+	colorDesc.debugName = "Camera Color";
+
+	m_colorTexture = device->CreateTexture(colorDesc, nullptr);
+	if (!m_colorTexture)
+	{
+		Debug::PrintError("[Camera::UpdateFrameBuffer] Color texture not created", true);
+		m_needFrameBufferUpdate = false;
+		return;
+	}
+
+	bones::rhi::TextureDesc depthDesc;
+	depthDesc.width = colorDesc.width;
+	depthDesc.height = colorDesc.height;
+	depthDesc.format = bones::rhi::Format::D24_UNorm_S8_UInt;
+	depthDesc.usage = bones::rhi::TextureUsage::DepthStencil;
+	depthDesc.sampleCount = sampleCount;
+	depthDesc.debugName = "Camera Depth";
+
+	m_depthTexture = device->CreateTexture(depthDesc, nullptr);
+	if (!m_depthTexture)
+	{
+		Debug::PrintError("[Camera::UpdateFrameBuffer] Depth texture not created", true);
+		ReleaseFrameBufferTextures();
+		m_needFrameBufferUpdate = false;
+		return;
+	}
+
+	const GLenum textureTarget = sampleCount > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
+	const GLuint colorId = static_cast<GLuint>(m_colorTexture->GetNativeHandle());
+	const GLuint depthId = static_cast<GLuint>(m_depthTexture->GetNativeHandle());
+
+	glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, textureTarget, colorId, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, textureTarget, depthId, 0);
+
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+	{
+		Debug::PrintError("[Camera::UpdateFrameBuffer] Framebuffer not created", true);
+	}
+
+	if (m_useMultisampling)
+	{
+		bones::rhi::TextureDesc resolveDesc = colorDesc;
+		resolveDesc.sampleCount = 1;
+		resolveDesc.debugName = "Camera Resolve";
+
+		m_resolveTexture = device->CreateTexture(resolveDesc, nullptr);
+		if (!m_resolveTexture)
+		{
+			Debug::PrintError("[Camera::UpdateFrameBuffer] Resolve texture not created", true);
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			ReleaseFrameBufferTextures();
+			m_needFrameBufferUpdate = false;
+			return;
+		}
+
+		// Screen buffer
+		glBindFramebuffer(GL_FRAMEBUFFER, m_secondFramebuffer);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+			static_cast<GLuint>(m_resolveTexture->GetNativeHandle()), 0);
+
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+		{
+			Debug::PrintError("[Camera::UpdateFrameBuffer] Resolve framebuffer not created", true);
+		}
+
+		m_secondFramebufferTexture = static_cast<unsigned int>(m_resolveTexture->GetNativeHandle());
+	}
+	else
+	{
+		m_secondFramebufferTexture = static_cast<unsigned int>(m_colorTexture->GetNativeHandle());
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	m_needFrameBufferUpdate = false;
 #endif
 }
 

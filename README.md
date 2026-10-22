@@ -17,7 +17,7 @@ It is a continuation of [Xenity Engine](https://github.com/Fewnity/Xenity-Engine
 ## Roadmap
 
 - **0.01** — Bones Engine branding, stable Zig build, C ABI (`bones/api.h`), runtime/editor split, Linux and Windows CI, and the automated scene smoke test.
-- **0.02** (in progress) — backend capabilities and the explicit `Device`/`Buffer`/`Texture`/`Shader`/`Pipeline`/`CommandList` contract, with tested OpenGL and Vulkan implementations. The engine now creates mesh buffers, textures and the light uniform buffer through the RHI; the legacy draw path and camera render targets still use OpenGL directly.
+- **0.02** (in progress) — backend capabilities and the explicit `Device`/`Buffer`/`Texture`/`Shader`/`Pipeline`/`CommandList` contract, with tested OpenGL and Vulkan implementations. The engine now creates mesh buffers, textures, the light uniform buffer and camera colour/depth targets through the RHI. The legacy draw path still records OpenGL calls and the camera framebuffers and resolve are still OpenGL objects.
 - **0.03** (started) — Vulkan backend foundation: headless device, buffers, shaders, pipelines, descriptor bindings, offscreen rendering and readback. Remaining: swapchain presentation and the 1.4 feature set.
 - **0.04** — Jolt Physics replaces Bullet, with a new physics format.
 - **0.05** — Stable plugin ABI (Nim scripting support is exploratory).

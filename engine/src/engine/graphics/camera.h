@@ -6,10 +6,13 @@
 
 #pragma once
 
+#include <memory>
+
 #include <glm/mat4x4.hpp>
 
 #include <engine/api.h>
 #include <engine/component.h>
+#include <engine/graphics/rhi/rhi.h>
 #include <engine/math/vector3.h>
 #include <engine/math/vector2.h>
 #include <engine/math/vector2_int.h>
@@ -310,14 +313,21 @@ protected:
 	void UpdateFrameBuffer();
 
 	/**
+	* @brief [Internal] Release the textures owned by the frame buffer
+	*/
+	void ReleaseFrameBufferTextures();
+
+	/**
 	* @brief [Internal] Bind view frame buffer
 	*/
 	void BindFrameBuffer();
 
-	// [Internal]
-	unsigned int m_secondFramebufferTexture = -1;
+	// [Internal] Native texture used by the editor and frame readback.
+	unsigned int m_secondFramebufferTexture = 0;
 
-	unsigned int m_framebufferTexture = -1;
+	std::unique_ptr<bones::rhi::Texture> m_colorTexture;
+	std::unique_ptr<bones::rhi::Texture> m_resolveTexture;
+	std::unique_ptr<bones::rhi::Texture> m_depthTexture;
 
 	glm::mat4 m_projection;
 	glm::mat4 m_canvasProjection;
@@ -328,8 +338,8 @@ protected:
 	*/
 	void CopyMultiSampledFrameBuffer();
 
-	unsigned int m_framebuffer = -1;
-	unsigned int m_secondFramebuffer = -1;
+	unsigned int m_framebuffer = 0;
+	unsigned int m_secondFramebuffer = 0;
 	int m_width, m_height;
 	float m_aspect;
 	float m_fov = 60.0f;		  // For 3D
@@ -338,7 +348,6 @@ protected:
 	float m_farClippingPlane = 1000;
 	ProjectionType m_projectionType = ProjectionType::Perspective;
 
-	unsigned int m_depthframebuffer = -1;
 	bool m_needFrameBufferUpdate = true;
 
 	bool m_useMultisampling = true;
