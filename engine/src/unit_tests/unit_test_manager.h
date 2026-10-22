@@ -216,6 +216,12 @@ MAKE_TEST(VertexDescriptorGetVertexElementSize);
 
 #pragma endregion
 
+#pragma region Renderer
+
+MAKE_TEST(RendererContract);
+
+#pragma endregion
+
 // ------------------------------------------------------------------------------- EDITOR TESTS
 
 #pragma region Editor

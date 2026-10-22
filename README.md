@@ -17,7 +17,7 @@ It is a continuation of [Xenity Engine](https://github.com/Fewnity/Xenity-Engine
 ## Roadmap
 
 - **0.01** (in progress) — Bones Engine branding, stable Zig build, C ABI (`bones/api.h`), runtime/editor split and CI. Remaining: automated scene smoke test and Windows linking.
-- **0.02** (in progress) — backend capabilities and the explicit `Device`/`Buffer`/`Texture`/`Shader`/`Pipeline`/`CommandList` contract.
+- **0.02** (in progress) — backend capabilities and the explicit `Device`/`Buffer`/`Texture`/`Shader`/`Pipeline`/`CommandList` contract, with a tested OpenGL reference implementation. Remaining: move the engine renderer onto the contract.
 - **0.03** — Vulkan 1.4 backend for Linux and Windows; OpenGL remains a supported fallback.
 - **0.04** — Jolt Physics replaces Bullet, with a new physics format.
 - **0.05** — Stable plugin ABI (Nim scripting support is exploratory).
@@ -57,6 +57,8 @@ zig build -Deditor=false -Dgame-source=tests/runtime_game
 `zig build` also copies the runtime assets (`engine_assets`, `public_engine_assets`, `icons`, `vscodeSample`, `plugins`) next to the executable, along with the editor font and `libassimp`.
 
 Hosts can drive the engine through the stable C ABI in `engine/src/bones/api.h` (`bones_init`, `bones_run`, `bones_stop`, `bones_quit`). The header is installed to `zig-out/include/bones/api.h` and stays valid C.
+
+The internal renderer contract is `engine/src/engine/graphics/rhi/rhi.h` (`Device`, `Buffer`, `Texture`, `Shader`, `Pipeline`, `CommandList`). The OpenGL implementation in `rhi_opengl.cpp` is the reference backend; the `Renderer Contract` unit test draws a triangle into an offscreen target and reads the pixels back.
 
 PS3 builds still use the PSL1GHT Makefile inside Docker (`app/packaging`).
 

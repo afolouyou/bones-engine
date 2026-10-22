@@ -1,6 +1,8 @@
 const std = @import("std");
 
 const EnginePaths = struct {
+    // Source directories are walked at configure time, so a new file needs
+    // this script to change (or the cache to be cleared) before it is compiled.
     const engine_src = "engine/src";
     const third_party = "third_party";
     const app_src = "app/src";

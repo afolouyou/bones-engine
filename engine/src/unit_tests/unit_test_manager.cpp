@@ -129,6 +129,12 @@ void UnitTestManager::StartAllTests()
 		TryTest(vertexDescriptorGetVertexElementSizeTest);
 	}
 
+	//------------------------------------------------------------------ Renderer contract
+	{
+		RendererContractTest rendererContractTest = RendererContractTest("Renderer Contract");
+		TryTest(rendererContractTest);
+	}
+
 #if defined(EDITOR)
 	//------------------------------------------------------------------ Editor Commands
 	{
