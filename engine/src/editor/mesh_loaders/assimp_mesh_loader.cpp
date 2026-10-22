@@ -3,7 +3,7 @@
 #include <iostream>
 #include <cstring>
 
-#include <assimp/Importer.hpp>
+#include <assimp/cimport.h>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
@@ -30,16 +30,16 @@ bool AssimpMeshLoader::LoadMesh(MeshData& mesh, const LoadingOptions& options)
 		unsigned char* data = file->ReadAllBinary(size);
 		file->Close();
 
-		// Load the mesh with assimp
-		Assimp::Importer importer;
+		// Load the mesh with assimp. The C API keeps the loader compatible with
+		// the MSVC-built assimp DLL when the engine itself is built with MinGW.
 		// aiProcess_Triangulate because we want to have only triangles, some submeshes mix triangles and quads and I don't know how to handle that
 		unsigned int flags = aiProcess_RemoveComponent | aiProcess_FlipUVs | aiProcess_JoinIdenticalVertices | aiProcess_Triangulate;
 		const std::string fileExtension = file->GetFileExtension();
-		const aiScene* scene = importer.ReadFileFromMemory(data, size, flags, fileExtension.substr(1).c_str());
+		const aiScene* scene = aiImportFileFromMemory(reinterpret_cast<const char*>(data), static_cast<unsigned int>(size), flags, fileExtension.substr(1).c_str());
 		if (!scene)
 		{
-			const std::string assimpError = importer.GetErrorString();
-			Debug::PrintError("[AssimpMeshLoader::LoadMesh] Failed to load the mesh: " + file->GetPath() + " (" + assimpError + ")", true);
+			const char* assimpError = aiGetErrorString();
+			Debug::PrintError("[AssimpMeshLoader::LoadMesh] Failed to load the mesh: " + file->GetPath() + " (" + (assimpError ? assimpError : "unknown error") + ")", true);
 			delete[] data;
 			return false;
 		}
@@ -146,6 +146,7 @@ bool AssimpMeshLoader::LoadMesh(MeshData& mesh, const LoadingOptions& options)
 				}
 			}
 		}
+		aiReleaseImport(scene);
 		delete[] data;
 	}
 

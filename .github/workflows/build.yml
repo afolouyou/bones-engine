@@ -62,7 +62,7 @@ jobs:
           grep -q 'Bones Engine 0.01' runtime-version.txt
 
   windows:
-    name: Windows (Zig/MSVC)
+    name: Windows (Zig/MinGW)
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -71,11 +71,11 @@ jobs:
         with:
           version: 0.17.0
 
-      # The vendored libraries are MSVC archives. Target the MSVC ABI so Zig
-      # resolves their /DEFAULTLIB directives against the MSVC and Windows SDK
-      # import libraries instead of looking for GNU-style lib*.a files.
+      # The vendored libraries are MSVC archives. Zig links them through its
+      # MinGW target; msvc_compat.c and the vendored bcrypt import library
+      # supply the few MSVC runtime symbols the archives expect.
       - name: Build the editor
-        run: zig build -Dtarget=x86_64-windows-msvc
+        run: zig build -Dtarget=x86_64-windows-gnu
 
       - name: Check the editor entry point
         run: |
@@ -84,4 +84,10 @@ jobs:
           if (-not (Select-String -Path version.txt -Pattern 'Bones Engine 0.01')) { exit 1 }
 
       - name: Build the runtime without the editor
-        run: zig build -Dtarget=x86_64-windows-msvc -Deditor=false -Dgame-source=tests/runtime_game
+        run: zig build -Dtarget=x86_64-windows-gnu -Deditor=false -Dgame-source=tests/runtime_game
+
+      - name: Check the runtime entry point
+        run: |
+          cd zig-out/bin
+          ./bones_runtime.exe --version | Tee-Object runtime-version.txt
+          if (-not (Select-String -Path runtime-version.txt -Pattern 'Bones Engine 0.01')) { exit 1 }

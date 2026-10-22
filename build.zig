@@ -166,7 +166,21 @@ pub fn build(b: *std.Build) void {
         exe.root_module.linkSystemLibrary("comdlg32", .{});
         exe.root_module.linkSystemLibrary("dbghelp", .{});
         exe.root_module.linkSystemLibrary("psapi", .{});
+        exe.root_module.linkSystemLibrary("dxgi", .{});
         if (vulkan) exe.root_module.linkSystemLibrary("vulkan-1", .{});
+
+        if (target.result.abi == .gnu) {
+            // The MSVC archives record /DEFAULTLIB:MSVCRT and OLDNAMES. Zig
+            // looks those up as libMSVCRT.a and libOLDNAMES.a. Empty archives
+            // satisfy the file lookup; the symbols come from the MinGW CRT and
+            // engine/src/windows/msvc_compat.c. The vendored libbcrypt.a next
+            // to the MSVC archives provides BCryptGenRandom to curl.
+            const shims = b.addWriteFiles();
+            _ = shims.add("libMSVCRT.a", "!<arch>\n");
+            _ = shims.add("libOLDNAMES.a", "!<arch>\n");
+            exe.root_module.addLibraryPath(shims.getDirectory());
+            exe.root_module.addLibraryPath(b.path(b.fmt("{s}/libs/x64", .{EnginePaths.third_party})));
+        }
     } else {
         exe.root_module.addLibraryPath(b.path(EnginePaths.third_party ++ "/libs"));
         exe.root_module.linkSystemLibrary("SDL3", .{});
