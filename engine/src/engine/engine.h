@@ -112,4 +112,6 @@ private:
 	static bool s_isRunning;
 	static bool s_isInitialized;
 	static int frameToSkip;
+	static int s_smokeFrames;
+	static bool s_smokeSceneDrawn;
 };

@@ -22,4 +22,5 @@ class EngineArgs
 public:
 	std::string executableLocation;
 	bool runningOnDevKit = false;
+	bool sceneSmoke = false;
 };

@@ -16,7 +16,7 @@ It is a continuation of [Xenity Engine](https://github.com/Fewnity/Xenity-Engine
 
 ## Roadmap
 
-- **0.01** (in progress) — Bones Engine branding, stable Zig build, C ABI (`bones/api.h`), runtime/editor split and CI. Remaining: automated scene smoke test and Windows linking.
+- **0.01** (in progress) — Bones Engine branding, stable Zig build, C ABI (`bones/api.h`), runtime/editor split, CI and the automated scene smoke test. Remaining: Windows linking.
 - **0.02** (in progress) — backend capabilities and the explicit `Device`/`Buffer`/`Texture`/`Shader`/`Pipeline`/`CommandList` contract, with tested OpenGL and Vulkan implementations. Remaining: move the engine renderer onto the contract.
 - **0.03** (started) — Vulkan backend foundation: headless device, buffers, shaders, pipelines, descriptor bindings, offscreen rendering and readback. Remaining: swapchain presentation and the 1.4 feature set.
 - **0.04** — Jolt Physics replaces Bullet, with a new physics format.
@@ -54,6 +54,15 @@ The editor and the runtime are separate builds. A runtime build needs the game s
 zig build -Deditor=false -Dgame-source=tests/runtime_game
 ./zig-out/bin/bones_runtime --version
 ```
+
+For a headless scene check, run the editor with `--scene-smoke` from `zig-out/bin`. It creates a temporary project, loads its start scene, draws it and exits:
+
+```sh
+cd zig-out/bin
+SDL_VIDEODRIVER=offscreen ./bones_editor --scene-smoke
+```
+
+The temporary project is removed when the editor shuts down. This is the same check CI runs after the unit tests.
 
 `zig build` also copies the runtime assets (`engine_assets`, `public_engine_assets`, `icons`, `vscodeSample`, `plugins`) next to the executable, along with the editor font and `libassimp`.
 

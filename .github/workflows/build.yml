@@ -29,7 +29,7 @@ jobs:
           ./bones_editor --version | tee version.txt
           grep -q 'Bones Engine 0.01' version.txt
 
-      - name: Run unit tests and editor smoke test
+      - name: Run unit tests and scene smoke test
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
           SDL_VIDEODRIVER: offscreen
@@ -38,13 +38,17 @@ jobs:
           VK_INSTANCE_LAYERS: VK_LAYER_KHRONOS_validation
         run: |
           cd zig-out/bin
-          timeout 25 stdbuf -oL -eL ./bones_editor > editor.log 2>&1 || true
+          rm -rf /tmp/bones_scene_smoke
+          timeout 60 stdbuf -oL -eL ./bones_editor --scene-smoke > editor.log 2>&1 || true
           sed -i 's/\x1b\[[0-9;]*m//g' editor.log
           tail -40 editor.log
           grep -q 'Unit Tests finished!' editor.log || { echo "Engine did not finish the unit tests"; exit 1; }
           grep -q 'Engine fully initiated' editor.log || { echo "Engine failed to init"; exit 1; }
           grep -q 'Renderer Contract (Vulkan) Test Passed' editor.log || { echo "Vulkan renderer contract test did not run"; exit 1; }
           grep -q 'Renderer Contract Resources (Vulkan) Test Passed' editor.log || { echo "Vulkan resources test did not run"; exit 1; }
+          grep -q 'Scene smoke test scene drawn' editor.log || { echo "Scene smoke test did not draw the scene"; exit 1; }
+          grep -q 'Scene smoke test passed' editor.log || { echo "Scene smoke test did not pass"; exit 1; }
+          grep -q 'Game loop ended' editor.log || { echo "Scene smoke test did not shut down cleanly"; exit 1; }
           if grep -q 'Test:$' editor.log; then echo "Unit test failure"; exit 1; fi
           if grep -q 'Cannot link the shader' editor.log; then echo "Shader compilation failure"; exit 1; fi
 

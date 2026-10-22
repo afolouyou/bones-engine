@@ -6,6 +6,10 @@
 
 #include "engine.h"
 
+#if defined(EDITOR)
+#include <filesystem>
+#endif
+
 #if defined(_WIN32) || defined(_WIN64) || defined(__LINUX__)
 #include <csignal>
 #endif
@@ -93,6 +97,8 @@ bool Engine::s_isRunning = true;
 bool Engine::s_isInitialized = false;
 EngineArgs Engine::s_engineArgs;
 int Engine::frameToSkip = 4;
+int Engine::s_smokeFrames = 0;
+bool Engine::s_smokeSceneDrawn = false;
 
 std::unique_ptr<GameInterface> Engine::s_game = nullptr;
 Event<>* Engine::s_onWindowFocusEvent = new Event<>();
@@ -227,6 +233,42 @@ int Engine::Init(int argc, char* argv[])
 
 #if defined(DEBUG) && defined(EDITOR)
 	UnitTestManager::StartAllTests();
+#endif
+
+#if defined(EDITOR)
+	if (s_engineArgs.sceneSmoke)
+	{
+		s_smokeFrames = 0;
+		s_smokeSceneDrawn = false;
+
+		const std::filesystem::path smokeFolder = std::filesystem::temp_directory_path() / "bones_scene_smoke";
+		std::error_code errorCode;
+		std::filesystem::remove_all(smokeFolder, errorCode);
+		if (!errorCode)
+			std::filesystem::create_directories(smokeFolder, errorCode);
+		if (errorCode)
+		{
+			Debug::PrintError("-------- Scene smoke test failed to prepare the project folder --------", true);
+			return -1;
+		}
+
+		// The smoke test creates a project from the default assets and loads its
+		// start scene, then exits after a few frames. Do not start a game build.
+		const bool compileWhenOpeningProject = EngineSettings::values.compileWhenOpeningProject;
+		EngineSettings::values.compileWhenOpeningProject = false;
+		const bool projectCreated = ProjectManager::CreateProject("Project", smokeFolder.string() + "/");
+		EngineSettings::values.compileWhenOpeningProject = compileWhenOpeningProject;
+
+		if (!projectCreated)
+		{
+			Debug::PrintError("-------- Scene smoke test failed to create the project --------", true);
+			std::error_code cleanupError;
+			std::filesystem::remove_all(smokeFolder, cleanupError);
+			return -1;
+		}
+
+		Debug::Print("-------- Scene smoke test project loaded --------", true);
+	}
 #endif
 
 	return 0;
@@ -474,6 +516,33 @@ void Engine::Loop()
 				frameToSkip = 4;
 			}
 
+#if defined(EDITOR)
+			if (s_engineArgs.sceneSmoke)
+			{
+				if (!s_smokeSceneDrawn)
+				{
+					const std::shared_ptr<Scene>& openedScene = SceneManager::GetOpenedScene();
+					if (ProjectManager::GetProjectState() == ProjectState::Loaded && openedScene && openedScene == ProjectManager::GetStartScene())
+					{
+						Graphics::Draw();
+						s_smokeSceneDrawn = true;
+						s_smokeFrames = 0;
+						Debug::Print("-------- Scene smoke test scene drawn --------", true);
+					}
+					else if (++s_smokeFrames > 600)
+					{
+						Debug::PrintError("-------- Scene smoke test failed: the project start scene did not load --------", true);
+						s_isRunning = false;
+					}
+				}
+				else if (++s_smokeFrames >= 3)
+				{
+					Debug::Print("-------- Scene smoke test passed --------", true);
+					s_isRunning = false;
+				}
+			}
+#endif
+
 			InputSystem::s_blockGameInput = false;
 			FrameLimiter::Wait();
 		}
@@ -528,6 +597,14 @@ void Engine::Stop()
 	s_isRunning = false;
 	AudioManager::Stop();
 	NetworkManager::Stop();
+
+#if defined(EDITOR)
+	if (s_engineArgs.sceneSmoke)
+	{
+		std::error_code errorCode;
+		std::filesystem::remove_all(std::filesystem::temp_directory_path() / "bones_scene_smoke", errorCode);
+	}
+#endif
 }
 
 void Engine::Quit()
@@ -555,6 +632,11 @@ void Engine::ParseEngineArguments(int argc, char* argv[])
 		if (i == 0)
 		{
 			s_engineArgs.executableLocation = param;
+			continue;
+		}
+		if (param == "--scene-smoke")
+		{
+			s_engineArgs.sceneSmoke = true;
 			continue;
 		}
 		const size_t equalsIndex = param.find("=");
