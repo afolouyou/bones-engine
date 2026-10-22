@@ -449,6 +449,44 @@ private:
 	VkImageAspectFlags m_aspect = VK_IMAGE_ASPECT_COLOR_BIT;
 };
 
+class VkRenderTarget final : public RenderTarget
+{
+public:
+	explicit VkRenderTarget(const RenderTargetDesc& desc) : m_desc(desc) { }
+
+	[[nodiscard]] const RenderTargetDesc& GetDesc() const override
+	{
+		return m_desc;
+	}
+
+	Texture& GetColorTexture() override
+	{
+		return *m_color;
+	}
+
+	Texture* GetDepthTexture() override
+	{
+		return m_depth.get();
+	}
+
+	Texture* GetResolveTexture() override
+	{
+		return m_resolve.get();
+	}
+
+	bool Resolve() override
+	{
+		return m_desc.sampleCount <= 1;
+	}
+
+	std::unique_ptr<Texture> m_color;
+	std::unique_ptr<Texture> m_depth;
+	std::unique_ptr<Texture> m_resolve;
+
+private:
+	RenderTargetDesc m_desc;
+};
+
 class VkShader final : public Shader
 {
 public:
@@ -800,6 +838,7 @@ public:
 	std::unique_ptr<Buffer> CreateBuffer(const BufferDesc& desc, const void* initialData) override;
 	void UpdateBuffer(Buffer& buffer, const void* data, uint64_t size, uint64_t offset) override;
 	std::unique_ptr<Texture> CreateTexture(const TextureDesc& desc, const void* initialData) override;
+	std::unique_ptr<RenderTarget> CreateRenderTarget(const RenderTargetDesc& desc) override;
 	std::unique_ptr<Shader> CreateShader(const ShaderDesc& desc) override;
 	std::unique_ptr<Pipeline> CreatePipeline(const PipelineDesc& desc) override;
 	std::unique_ptr<CommandList> CreateCommandList() override;
@@ -1592,6 +1631,43 @@ std::unique_ptr<Texture> VulkanDevice::CreateTexture(const TextureDesc& desc, co
 	if (initialData != nullptr && !UploadTexture(*texture, initialData))
 		return nullptr;
 	return texture;
+}
+
+std::unique_ptr<RenderTarget> VulkanDevice::CreateRenderTarget(const RenderTargetDesc& desc)
+{
+	if (desc.width == 0 || desc.height == 0 || desc.sampleCount != 1)
+	{
+		// Multisampled resolve is not implemented yet; the OpenGL backend
+		// handles the camera's MSAA targets.
+		return nullptr;
+	}
+
+	auto target = std::make_unique<VkRenderTarget>(desc);
+
+	TextureDesc colorDesc;
+	colorDesc.width = desc.width;
+	colorDesc.height = desc.height;
+	colorDesc.format = desc.colorFormat;
+	colorDesc.usage = TextureUsage::RenderTarget | TextureUsage::Sampled;
+	colorDesc.debugName = desc.debugName;
+	target->m_color = CreateTexture(colorDesc, nullptr);
+	if (!target->m_color)
+		return nullptr;
+
+	if (desc.depthFormat != Format::Undefined)
+	{
+		TextureDesc depthDesc;
+		depthDesc.width = desc.width;
+		depthDesc.height = desc.height;
+		depthDesc.format = desc.depthFormat;
+		depthDesc.usage = TextureUsage::DepthStencil;
+		depthDesc.debugName = desc.debugName;
+		target->m_depth = CreateTexture(depthDesc, nullptr);
+		if (!target->m_depth)
+			return nullptr;
+	}
+
+	return target;
 }
 
 std::unique_ptr<Shader> VulkanDevice::CreateShader(const ShaderDesc& desc)

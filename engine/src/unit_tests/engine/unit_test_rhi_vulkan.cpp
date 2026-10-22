@@ -68,12 +68,12 @@ TestResult RendererContractVulkanTest::Start(std::string& errorOut)
 	if (!vertexLoaded || !fragmentLoaded)
 		return testResult;
 
-	bones::rhi::TextureDesc targetDesc;
+	bones::rhi::RenderTargetDesc targetDesc;
 	targetDesc.width = 64;
 	targetDesc.height = 64;
-	targetDesc.format = bones::rhi::Format::R8G8B8A8_UNorm;
-	targetDesc.usage = bones::rhi::TextureUsage::Sampled | bones::rhi::TextureUsage::RenderTarget;
-	std::unique_ptr<bones::rhi::Texture> target = device->CreateTexture(targetDesc, nullptr);
+	targetDesc.colorFormat = bones::rhi::Format::R8G8B8A8_UNorm;
+	targetDesc.depthFormat = bones::rhi::Format::Undefined;
+	std::unique_ptr<bones::rhi::RenderTarget> target = device->CreateRenderTarget(targetDesc);
 	EXPECT_NOT_NULL(target, "Failed to create the Vulkan render target");
 	if (!target)
 		return testResult;
@@ -129,7 +129,7 @@ TestResult RendererContractVulkanTest::Start(std::string& errorOut)
 		return testResult;
 
 	bones::rhi::RenderPassDesc passDesc;
-	passDesc.colorTarget = target.get();
+	passDesc.colorTarget = &target->GetColorTexture();
 	passDesc.colorLoadOp = bones::rhi::LoadOp::Clear;
 	passDesc.clear.r = 0.0f;
 	passDesc.clear.g = 0.0f;
@@ -147,7 +147,7 @@ TestResult RendererContractVulkanTest::Start(std::string& errorOut)
 	device->WaitIdle();
 
 	unsigned char pixels[64 * 64 * 4] = {};
-	EXPECT_TRUE(device->ReadTexture(*target, pixels, sizeof(pixels)), "Failed to read the Vulkan render target");
+	EXPECT_TRUE(device->ReadTexture(target->GetColorTexture(), pixels, sizeof(pixels)), "Failed to read the Vulkan render target");
 
 	const size_t center = (32 * 64 + 32) * 4;
 	EXPECT_TRUE(pixels[center + 0] > 240 && pixels[center + 1] < 15 && pixels[center + 2] < 15, "The Vulkan triangle was not drawn at the centre");
@@ -185,12 +185,12 @@ TestResult RendererContractResourcesVulkanTest::Start(std::string& errorOut)
 	if (!vertexLoaded || !fragmentLoaded)
 		return testResult;
 
-	bones::rhi::TextureDesc targetDesc;
+	bones::rhi::RenderTargetDesc targetDesc;
 	targetDesc.width = 64;
 	targetDesc.height = 64;
-	targetDesc.format = bones::rhi::Format::R8G8B8A8_UNorm;
-	targetDesc.usage = bones::rhi::TextureUsage::RenderTarget;
-	std::unique_ptr<bones::rhi::Texture> target = device->CreateTexture(targetDesc, nullptr);
+	targetDesc.colorFormat = bones::rhi::Format::R8G8B8A8_UNorm;
+	targetDesc.depthFormat = bones::rhi::Format::Undefined;
+	std::unique_ptr<bones::rhi::RenderTarget> target = device->CreateRenderTarget(targetDesc);
 	EXPECT_NOT_NULL(target, "Failed to create the Vulkan resources render target");
 	if (!target)
 		return testResult;
@@ -286,7 +286,7 @@ TestResult RendererContractResourcesVulkanTest::Start(std::string& errorOut)
 		return testResult;
 
 	bones::rhi::RenderPassDesc passDesc;
-	passDesc.colorTarget = target.get();
+	passDesc.colorTarget = &target->GetColorTexture();
 	passDesc.colorLoadOp = bones::rhi::LoadOp::Clear;
 	passDesc.clear.r = 0.0f;
 	passDesc.clear.g = 0.0f;
@@ -307,7 +307,7 @@ TestResult RendererContractResourcesVulkanTest::Start(std::string& errorOut)
 	device->WaitIdle();
 
 	unsigned char pixels[64 * 64 * 4] = {};
-	EXPECT_TRUE(device->ReadTexture(*target, pixels, sizeof(pixels)), "Failed to read the Vulkan resources render target");
+	EXPECT_TRUE(device->ReadTexture(target->GetColorTexture(), pixels, sizeof(pixels)), "Failed to read the Vulkan resources render target");
 
 	const size_t center = (32 * 64 + 32) * 4;
 	EXPECT_TRUE(pixels[center + 0] < 15 && pixels[center + 1] > 240 && pixels[center + 2] < 15, "The Vulkan textured quad was not drawn at the centre");

@@ -172,6 +172,7 @@ enum class StoreOp : uint8_t
 
 class Buffer;
 class Texture;
+class RenderTarget;
 class Shader;
 class Pipeline;
 class CommandList;
@@ -196,6 +197,18 @@ struct TextureDesc
 	 * 1 for a regular texture, or a larger sample count for a multisampled render target.
 	 * Backends reject sample counts they do not support.
 	 */
+	uint32_t sampleCount = 1;
+	const char* debugName = nullptr;
+};
+
+struct RenderTargetDesc
+{
+	uint32_t width = 0;
+	uint32_t height = 0;
+	Format colorFormat = Format::R8G8B8A8_UNorm;
+	/** Undefined creates a colour-only target. */
+	Format depthFormat = Format::D24_UNorm_S8_UInt;
+	/** 1 for a regular target, or a larger sample count with a resolve texture. */
 	uint32_t sampleCount = 1;
 	const char* debugName = nullptr;
 };
@@ -317,6 +330,37 @@ public:
 	}
 };
 
+class RenderTarget
+{
+public:
+	virtual ~RenderTarget() = default;
+	[[nodiscard]] virtual const RenderTargetDesc& GetDesc() const = 0;
+
+	virtual Texture& GetColorTexture() = 0;
+	/** Null when the target has no depth attachment. */
+	virtual Texture* GetDepthTexture() = 0;
+	/** Non-multisampled resolve texture, or null when sampleCount is 1. */
+	virtual Texture* GetResolveTexture() = 0;
+
+	/**
+	 * @brief Resolve the multisampled colour attachment into the resolve texture.
+	 *
+	 * A single-sampled target is already resolved and returns true.
+	 */
+	virtual bool Resolve() = 0;
+
+	/**
+	 * @brief Backend-native framebuffer, for the legacy renderer during migration.
+	 *
+	 * See Buffer::GetNativeHandle(). The value is a GLuint on OpenGL and is not
+	 * available on Vulkan, where dynamic rendering does not use framebuffers.
+	 */
+	[[nodiscard]] virtual uintptr_t GetNativeHandle() const
+	{
+		return 0;
+	}
+};
+
 class Shader
 {
 public:
@@ -366,6 +410,7 @@ public:
 	virtual void UpdateBuffer(Buffer& buffer, const void* data, uint64_t size, uint64_t offset = 0) = 0;
 
 	virtual std::unique_ptr<Texture> CreateTexture(const TextureDesc& desc, const void* initialData = nullptr) = 0;
+	virtual std::unique_ptr<RenderTarget> CreateRenderTarget(const RenderTargetDesc& desc) = 0;
 
 	virtual std::unique_ptr<Shader> CreateShader(const ShaderDesc& desc) = 0;
 	virtual std::unique_ptr<Pipeline> CreatePipeline(const PipelineDesc& desc) = 0;

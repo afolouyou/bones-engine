@@ -277,6 +277,165 @@ private:
 	GLuint m_id = 0;
 };
 
+class GLRenderTarget final : public RenderTarget
+{
+public:
+	explicit GLRenderTarget(const RenderTargetDesc& desc) : m_desc(desc) { }
+
+	~GLRenderTarget() override
+	{
+		if (m_resolveFramebuffer != 0)
+			glDeleteFramebuffers(1, &m_resolveFramebuffer);
+		if (m_framebuffer != 0)
+			glDeleteFramebuffers(1, &m_framebuffer);
+	}
+
+	bool Create()
+	{
+		if (m_desc.width == 0 || m_desc.height == 0)
+			return false;
+		if (m_desc.sampleCount == 0 || (m_desc.sampleCount > 1 && (m_desc.sampleCount & (m_desc.sampleCount - 1)) != 0))
+			return false;
+
+		TextureDesc colorDesc;
+		colorDesc.width = m_desc.width;
+		colorDesc.height = m_desc.height;
+		colorDesc.format = m_desc.colorFormat;
+		colorDesc.usage = TextureUsage::RenderTarget | TextureUsage::Sampled;
+		colorDesc.sampleCount = m_desc.sampleCount;
+		colorDesc.debugName = m_desc.debugName;
+
+		m_color = std::make_unique<GLTexture>(colorDesc);
+		if (!m_color->Create(nullptr))
+			return false;
+
+		if (m_desc.depthFormat != Format::Undefined)
+		{
+			TextureDesc depthDesc;
+			depthDesc.width = m_desc.width;
+			depthDesc.height = m_desc.height;
+			depthDesc.format = m_desc.depthFormat;
+			depthDesc.usage = TextureUsage::DepthStencil;
+			depthDesc.sampleCount = m_desc.sampleCount;
+			depthDesc.debugName = m_desc.debugName;
+
+			m_depth = std::make_unique<GLTexture>(depthDesc);
+			if (!m_depth->Create(nullptr))
+				return false;
+		}
+
+		if (m_desc.sampleCount > 1)
+		{
+			TextureDesc resolveDesc = colorDesc;
+			resolveDesc.sampleCount = 1;
+
+			m_resolve = std::make_unique<GLTexture>(resolveDesc);
+			if (!m_resolve->Create(nullptr))
+				return false;
+		}
+
+		const GLenum attachmentTarget = m_desc.sampleCount > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
+
+		glGenFramebuffers(1, &m_framebuffer);
+		if (m_framebuffer == 0)
+			return false;
+
+		glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, attachmentTarget, m_color->GetId(), 0);
+
+		if (m_depth)
+		{
+			const GLenum attachment = m_desc.depthFormat == Format::D24_UNorm_S8_UInt
+				? GL_DEPTH_STENCIL_ATTACHMENT
+				: GL_DEPTH_ATTACHMENT;
+			glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, attachmentTarget, m_depth->GetId(), 0);
+		}
+
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+		{
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			return false;
+		}
+
+		if (m_resolve)
+		{
+			glGenFramebuffers(1, &m_resolveFramebuffer);
+			if (m_resolveFramebuffer == 0)
+			{
+				glBindFramebuffer(GL_FRAMEBUFFER, 0);
+				return false;
+			}
+
+			glBindFramebuffer(GL_FRAMEBUFFER, m_resolveFramebuffer);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_resolve->GetId(), 0);
+			if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+			{
+				glBindFramebuffer(GL_FRAMEBUFFER, 0);
+				return false;
+			}
+		}
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		return true;
+	}
+
+	[[nodiscard]] const RenderTargetDesc& GetDesc() const override
+	{
+		return m_desc;
+	}
+
+	Texture& GetColorTexture() override
+	{
+		return *m_color;
+	}
+
+	Texture* GetDepthTexture() override
+	{
+		return m_depth.get();
+	}
+
+	Texture* GetResolveTexture() override
+	{
+		return m_resolve.get();
+	}
+
+	bool Resolve() override
+	{
+		if (m_desc.sampleCount <= 1)
+			return true;
+		if (m_framebuffer == 0 || m_resolveFramebuffer == 0)
+			return false;
+
+		GLint previousRead = 0;
+		GLint previousDraw = 0;
+		glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previousRead);
+		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previousDraw);
+
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, m_framebuffer);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_resolveFramebuffer);
+		glBlitFramebuffer(0, 0, static_cast<GLint>(m_desc.width), static_cast<GLint>(m_desc.height),
+			0, 0, static_cast<GLint>(m_desc.width), static_cast<GLint>(m_desc.height),
+			GL_COLOR_BUFFER_BIT, GL_LINEAR);
+
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, static_cast<GLuint>(previousRead));
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, static_cast<GLuint>(previousDraw));
+		return true;
+	}
+
+	[[nodiscard]] uintptr_t GetNativeHandle() const override
+	{
+		return static_cast<uintptr_t>(m_framebuffer);
+	}
+
+private:
+	RenderTargetDesc m_desc;
+	std::unique_ptr<GLTexture> m_color;
+	std::unique_ptr<GLTexture> m_depth;
+	std::unique_ptr<GLTexture> m_resolve;
+	GLuint m_framebuffer = 0;
+	GLuint m_resolveFramebuffer = 0;
+};
+
 class GLShader final : public Shader
 {
 public:
@@ -421,13 +580,15 @@ public:
 				glGenFramebuffers(1, &m_passFramebuffer);
 
 			glBindFramebuffer(GL_FRAMEBUFFER, m_passFramebuffer);
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color.GetId(), 0);
+			const GLenum colorTargetType = color.GetDesc().sampleCount > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, colorTargetType, color.GetId(), 0);
 
 			if (desc.depthTarget != nullptr)
 			{
 				GLTexture& depth = static_cast<GLTexture&>(*desc.depthTarget);
 				const GLenum attachment = depth.GetDesc().format == Format::D24_UNorm_S8_UInt ? GL_DEPTH_STENCIL_ATTACHMENT : GL_DEPTH_ATTACHMENT;
-				glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, depth.GetId(), 0);
+				const GLenum depthTargetType = depth.GetDesc().sampleCount > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
+				glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, depthTargetType, depth.GetId(), 0);
 			}
 
 			if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
@@ -656,6 +817,14 @@ public:
 		if (!texture->Create(initialData))
 			return nullptr;
 		return texture;
+	}
+
+	std::unique_ptr<RenderTarget> CreateRenderTarget(const RenderTargetDesc& desc) override
+	{
+		auto target = std::make_unique<GLRenderTarget>(desc);
+		if (!target->Create())
+			return nullptr;
+		return target;
 	}
 
 	std::unique_ptr<Shader> CreateShader(const ShaderDesc& desc) override

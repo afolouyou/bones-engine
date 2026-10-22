@@ -41,13 +41,6 @@ Camera::Camera() : m_fov(DEFAULT_CAMERA_FOV), m_isProjectionDirty(true)
 {
 	XASSERT(Engine::IsCalledFromMainThread(), "Function called from another thread");
 
-#if defined(_WIN32) || defined(_WIN64) || defined(__LINUX__)
-	glGenFramebuffers(1, &m_framebuffer);
-	glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
-	glGenFramebuffers(1, &m_secondFramebuffer);
-	glBindFramebuffer(GL_FRAMEBUFFER, m_secondFramebuffer);
-#endif
-
 	ChangeFrameBufferSize(Vector2Int(Window::GetWidth(), Window::GetHeight()));
 }
 
@@ -55,27 +48,13 @@ Camera::~Camera()
 {
 	XASSERT(Engine::IsCalledFromMainThread(), "Function called from another thread");
 
-#if defined(_WIN32) || defined(_WIN64) || defined(__LINUX__)
-	if (m_framebuffer != 0)
-	{
-		glDeleteFramebuffers(1, &m_framebuffer);
-		m_framebuffer = 0;
-	}
-	if (m_secondFramebuffer != 0)
-	{
-		glDeleteFramebuffers(1, &m_secondFramebuffer);
-		m_secondFramebuffer = 0;
-	}
 	ReleaseFrameBufferTextures();
-#endif
 	GetTransformRaw()->GetOnTransformUpdated().Unbind(&Camera::UpdateCameraTransformMatrix, this);
 }
 
 void Camera::ReleaseFrameBufferTextures()
 {
-	m_colorTexture.reset();
-	m_resolveTexture.reset();
-	m_depthTexture.reset();
+	m_renderTarget.reset();
 	m_secondFramebufferTexture = 0;
 }
 
@@ -363,91 +342,27 @@ void Camera::UpdateFrameBuffer()
 		return;
 	}
 
-	const uint32_t sampleCount = m_useMultisampling ? 8 : 1;
+	bones::rhi::RenderTargetDesc desc;
+	desc.width = static_cast<uint32_t>(m_width);
+	desc.height = static_cast<uint32_t>(m_height);
+	desc.colorFormat = bones::rhi::Format::R8G8B8A8_UNorm;
+	desc.depthFormat = bones::rhi::Format::D24_UNorm_S8_UInt;
+	desc.sampleCount = m_useMultisampling ? 8 : 1;
+	desc.debugName = "Camera";
 
-	bones::rhi::TextureDesc colorDesc;
-	colorDesc.width = static_cast<uint32_t>(m_width);
-	colorDesc.height = static_cast<uint32_t>(m_height);
-	colorDesc.format = bones::rhi::Format::R8G8B8A8_UNorm;
-	colorDesc.usage = bones::rhi::TextureUsage::RenderTarget | bones::rhi::TextureUsage::Sampled;
-	colorDesc.minFilter = bones::rhi::Filter::Linear;
-	colorDesc.magFilter = bones::rhi::Filter::Linear;
-	colorDesc.wrap = bones::rhi::WrapMode::ClampToEdge;
-	colorDesc.sampleCount = sampleCount;
-	colorDesc.debugName = "Camera Color";
-
-	m_colorTexture = device->CreateTexture(colorDesc, nullptr);
-	if (!m_colorTexture)
+	m_renderTarget = device->CreateRenderTarget(desc);
+	if (!m_renderTarget)
 	{
-		Debug::PrintError("[Camera::UpdateFrameBuffer] Color texture not created", true);
+		Debug::PrintError("[Camera::UpdateFrameBuffer] Render target not created", true);
 		m_needFrameBufferUpdate = false;
 		return;
 	}
 
-	bones::rhi::TextureDesc depthDesc;
-	depthDesc.width = colorDesc.width;
-	depthDesc.height = colorDesc.height;
-	depthDesc.format = bones::rhi::Format::D24_UNorm_S8_UInt;
-	depthDesc.usage = bones::rhi::TextureUsage::DepthStencil;
-	depthDesc.sampleCount = sampleCount;
-	depthDesc.debugName = "Camera Depth";
+	bones::rhi::Texture* displayTexture = m_renderTarget->GetResolveTexture();
+	if (!displayTexture)
+		displayTexture = &m_renderTarget->GetColorTexture();
+	m_secondFramebufferTexture = static_cast<unsigned int>(displayTexture->GetNativeHandle());
 
-	m_depthTexture = device->CreateTexture(depthDesc, nullptr);
-	if (!m_depthTexture)
-	{
-		Debug::PrintError("[Camera::UpdateFrameBuffer] Depth texture not created", true);
-		ReleaseFrameBufferTextures();
-		m_needFrameBufferUpdate = false;
-		return;
-	}
-
-	const GLenum textureTarget = sampleCount > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
-	const GLuint colorId = static_cast<GLuint>(m_colorTexture->GetNativeHandle());
-	const GLuint depthId = static_cast<GLuint>(m_depthTexture->GetNativeHandle());
-
-	glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, textureTarget, colorId, 0);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, textureTarget, depthId, 0);
-
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-	{
-		Debug::PrintError("[Camera::UpdateFrameBuffer] Framebuffer not created", true);
-	}
-
-	if (m_useMultisampling)
-	{
-		bones::rhi::TextureDesc resolveDesc = colorDesc;
-		resolveDesc.sampleCount = 1;
-		resolveDesc.debugName = "Camera Resolve";
-
-		m_resolveTexture = device->CreateTexture(resolveDesc, nullptr);
-		if (!m_resolveTexture)
-		{
-			Debug::PrintError("[Camera::UpdateFrameBuffer] Resolve texture not created", true);
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
-			ReleaseFrameBufferTextures();
-			m_needFrameBufferUpdate = false;
-			return;
-		}
-
-		// Screen buffer
-		glBindFramebuffer(GL_FRAMEBUFFER, m_secondFramebuffer);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-			static_cast<GLuint>(m_resolveTexture->GetNativeHandle()), 0);
-
-		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-		{
-			Debug::PrintError("[Camera::UpdateFrameBuffer] Resolve framebuffer not created", true);
-		}
-
-		m_secondFramebufferTexture = static_cast<unsigned int>(m_resolveTexture->GetNativeHandle());
-	}
-	else
-	{
-		m_secondFramebufferTexture = static_cast<unsigned int>(m_colorTexture->GetNativeHandle());
-	}
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	m_needFrameBufferUpdate = false;
 #endif
 }
@@ -475,7 +390,8 @@ void Camera::BindFrameBuffer()
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__LINUX__)
 	UpdateFrameBuffer();
-	glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
+	if (m_renderTarget)
+		glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(m_renderTarget->GetNativeHandle()));
 #endif
 
 	Engine::GetRenderer().SetViewport(0, 0, m_width, m_height);
@@ -572,15 +488,16 @@ void Camera::CopyMultiSampledFrameBuffer()
 	XASSERT(Engine::IsCalledFromMainThread(), "Function called from another thread");
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__LINUX__)
+	if (!m_renderTarget)
+		return;
+
 	if (m_useMultisampling)
-	{
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, m_framebuffer);
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_secondFramebuffer);
-		glBlitFramebuffer(0, 0, GetWidth(), GetHeight(), 0, 0, GetWidth(), GetHeight(), GL_COLOR_BUFFER_BIT, GL_LINEAR);
-	}
+		m_renderTarget->Resolve();
+
 #if !defined(EDITOR)
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-		glBlitFramebuffer(0, 0, GetWidth(), GetHeight(), 0, 0, GetWidth(), GetHeight(), GL_COLOR_BUFFER_BIT, GL_LINEAR);
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, static_cast<GLuint>(m_renderTarget->GetNativeHandle()));
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glBlitFramebuffer(0, 0, GetWidth(), GetHeight(), 0, 0, GetWidth(), GetHeight(), GL_COLOR_BUFFER_BIT, GL_LINEAR);
 #endif
 #endif
 }

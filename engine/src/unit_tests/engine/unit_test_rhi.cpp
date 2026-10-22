@@ -117,12 +117,12 @@ TestResult RendererContractTest::Start(std::string& errorOut)
 		return testResult;
 
 	// Render target
-	bones::rhi::TextureDesc targetDesc;
+	bones::rhi::RenderTargetDesc targetDesc;
 	targetDesc.width = 64;
 	targetDesc.height = 64;
-	targetDesc.format = bones::rhi::Format::R8G8B8A8_UNorm;
-	targetDesc.usage = bones::rhi::TextureUsage::Sampled | bones::rhi::TextureUsage::RenderTarget;
-	std::unique_ptr<bones::rhi::Texture> target = device->CreateTexture(targetDesc, nullptr);
+	targetDesc.colorFormat = bones::rhi::Format::R8G8B8A8_UNorm;
+	targetDesc.depthFormat = bones::rhi::Format::Undefined;
+	std::unique_ptr<bones::rhi::RenderTarget> target = device->CreateRenderTarget(targetDesc);
 	EXPECT_NOT_NULL(target, "Failed to create the render target");
 	if (!target)
 		return testResult;
@@ -179,7 +179,7 @@ TestResult RendererContractTest::Start(std::string& errorOut)
 		return testResult;
 
 	bones::rhi::RenderPassDesc passDesc;
-	passDesc.colorTarget = target.get();
+	passDesc.colorTarget = &target->GetColorTexture();
 	passDesc.colorLoadOp = bones::rhi::LoadOp::Clear;
 	passDesc.clear.r = 0.0f;
 	passDesc.clear.g = 0.0f;
@@ -197,7 +197,7 @@ TestResult RendererContractTest::Start(std::string& errorOut)
 	device->WaitIdle();
 
 	unsigned char pixels[64 * 64 * 4] = {};
-	EXPECT_TRUE(device->ReadTexture(*target, pixels, sizeof(pixels)), "Failed to read the render target");
+	EXPECT_TRUE(device->ReadTexture(target->GetColorTexture(), pixels, sizeof(pixels)), "Failed to read the render target");
 
 	const size_t center = (32 * 64 + 32) * 4;
 	EXPECT_TRUE(pixels[center + 0] > 240 && pixels[center + 1] < 15 && pixels[center + 2] < 15, "The triangle was not drawn at the centre");
@@ -218,12 +218,12 @@ TestResult RendererContractResourcesTest::Start(std::string& errorOut)
 	if (!device)
 		return testResult;
 
-	bones::rhi::TextureDesc targetDesc;
+	bones::rhi::RenderTargetDesc targetDesc;
 	targetDesc.width = 64;
 	targetDesc.height = 64;
-	targetDesc.format = bones::rhi::Format::R8G8B8A8_UNorm;
-	targetDesc.usage = bones::rhi::TextureUsage::RenderTarget;
-	std::unique_ptr<bones::rhi::Texture> target = device->CreateTexture(targetDesc, nullptr);
+	targetDesc.colorFormat = bones::rhi::Format::R8G8B8A8_UNorm;
+	targetDesc.depthFormat = bones::rhi::Format::Undefined;
+	std::unique_ptr<bones::rhi::RenderTarget> target = device->CreateRenderTarget(targetDesc);
 	EXPECT_NOT_NULL(target, "Failed to create the resources render target");
 	if (!target)
 		return testResult;
@@ -317,7 +317,7 @@ TestResult RendererContractResourcesTest::Start(std::string& errorOut)
 		return testResult;
 
 	bones::rhi::RenderPassDesc passDesc;
-	passDesc.colorTarget = target.get();
+	passDesc.colorTarget = &target->GetColorTexture();
 	passDesc.colorLoadOp = bones::rhi::LoadOp::Clear;
 	passDesc.clear.r = 0.0f;
 	passDesc.clear.g = 0.0f;
@@ -338,7 +338,7 @@ TestResult RendererContractResourcesTest::Start(std::string& errorOut)
 	device->WaitIdle();
 
 	unsigned char pixels[64 * 64 * 4] = {};
-	EXPECT_TRUE(device->ReadTexture(*target, pixels, sizeof(pixels)), "Failed to read the resources render target");
+	EXPECT_TRUE(device->ReadTexture(target->GetColorTexture(), pixels, sizeof(pixels)), "Failed to read the resources render target");
 
 	const size_t center = (32 * 64 + 32) * 4;
 	EXPECT_TRUE(pixels[center + 0] < 15 && pixels[center + 1] > 240 && pixels[center + 2] < 15, "The textured quad was not drawn at the centre");

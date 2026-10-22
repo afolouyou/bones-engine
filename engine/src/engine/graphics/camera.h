@@ -313,7 +313,7 @@ protected:
 	void UpdateFrameBuffer();
 
 	/**
-	* @brief [Internal] Release the textures owned by the frame buffer
+	* @brief [Internal] Release the render target owned by the frame buffer
 	*/
 	void ReleaseFrameBufferTextures();
 
@@ -325,9 +325,7 @@ protected:
 	// [Internal] Native texture used by the editor and frame readback.
 	unsigned int m_secondFramebufferTexture = 0;
 
-	std::unique_ptr<bones::rhi::Texture> m_colorTexture;
-	std::unique_ptr<bones::rhi::Texture> m_resolveTexture;
-	std::unique_ptr<bones::rhi::Texture> m_depthTexture;
+	std::unique_ptr<bones::rhi::RenderTarget> m_renderTarget;
 
 	glm::mat4 m_projection;
 	glm::mat4 m_canvasProjection;
@@ -338,8 +336,6 @@ protected:
 	*/
 	void CopyMultiSampledFrameBuffer();
 
-	unsigned int m_framebuffer = 0;
-	unsigned int m_secondFramebuffer = 0;
 	int m_width, m_height;
 	float m_aspect;
 	float m_fov = 60.0f;		  // For 3D
